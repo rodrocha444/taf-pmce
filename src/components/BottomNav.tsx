@@ -15,7 +15,7 @@ export const BottomNav: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/90 backdrop-blur-lg border-t border-zinc-800/80 px-4 py-2 flex items-center justify-around max-w-lg mx-auto md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/90 backdrop-blur-lg border-t border-zinc-800/80 px-4 py-2 flex items-center justify-around max-w-lg mx-auto md:hidden bottom-nav-safe">
       <Link
         to="/"
         className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-bold transition-all ${

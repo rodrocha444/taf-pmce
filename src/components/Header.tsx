@@ -11,7 +11,7 @@ export const Header: React.FC = () => {
   const isActivePath = (path: string) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-30 bg-zinc-950/85 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3">
+    <header className="sticky top-0 z-30 bg-zinc-950/85 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 header-safe">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
         {/* Logo / Title */}
         <Link to="/" className="flex items-center gap-2 group">

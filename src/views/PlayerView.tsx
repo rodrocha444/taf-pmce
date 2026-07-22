@@ -119,7 +119,7 @@ export const PlayerView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-zinc-950 text-white flex flex-col justify-between p-4 md:p-6 select-none touch-manipulation">
+    <div className="min-h-[100dvh] bg-zinc-950 text-white flex flex-col justify-between player-safe-container select-none touch-manipulation">
       {/* Top Header Bar */}
       <div className="flex items-center justify-between gap-3 max-w-xl mx-auto w-full pt-1">
         <button
