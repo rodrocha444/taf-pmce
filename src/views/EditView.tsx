@@ -4,6 +4,7 @@ import { Plus, RotateCcw, Save, ArrowLeft, Trash2, Edit2, Play, Coffee } from 'l
 import { useWorkoutStore } from '../store/workoutStore';
 import type { Exercise } from '../types';
 import { formatSecondsToMMSS, getExerciseStartTime, getTotalWorkoutDuration } from '../utils/formatters';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export const EditView: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +19,8 @@ export const EditView: React.FC = () => {
   // Form Modal state for adding/editing
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [isAdding, setIsAdding] = useState<boolean>(false);
+  const [deleteExerciseTarget, setDeleteExerciseTarget] = useState<Exercise | null>(null);
+  const [showResetModal, setShowResetModal] = useState<boolean>(false);
 
   const [formName, setFormName] = useState<string>('');
   const [formNotes, setFormNotes] = useState<string>('');
@@ -108,11 +111,7 @@ export const EditView: React.FC = () => {
         <h1 className="text-xl font-bold text-white font-['Outfit']">Editar Treino TAF</h1>
 
         <button
-          onClick={() => {
-            if (confirm('Restaurar o treino TAF PMCE com os 15 exercícios originais de 2 minutos (1 min Execução + 1 min Descanso)?')) {
-              resetDefaultWorkout();
-            }
-          }}
+          onClick={() => setShowResetModal(true)}
           className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 hover:bg-zinc-800 text-xs font-semibold flex items-center gap-1"
           title="Restaurar Padrão"
         >
@@ -202,11 +201,7 @@ export const EditView: React.FC = () => {
               </button>
 
               <button
-                onClick={() => {
-                  if (confirm(`Remover "${exercise.name}"?`)) {
-                    deleteExerciseFromWorkout(workout.id, exercise.id);
-                  }
-                }}
+                onClick={() => setDeleteExerciseTarget(exercise)}
                 className="p-2 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-semibold border border-rose-500/20"
                 title="Excluir"
               >
@@ -352,6 +347,36 @@ export const EditView: React.FC = () => {
           </form>
         </div>
       )}
+
+      {/* Delete Exercise Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteExerciseTarget}
+        title="Excluir Exercício?"
+        description={`Tem certeza que deseja remover "${deleteExerciseTarget?.name}" da sua série de treino?`}
+        confirmLabel="Sim, Remover"
+        variant="danger"
+        onConfirm={() => {
+          if (deleteExerciseTarget) {
+            deleteExerciseFromWorkout(workout.id, deleteExerciseTarget.id);
+            setDeleteExerciseTarget(null);
+          }
+        }}
+        onCancel={() => setDeleteExerciseTarget(null)}
+      />
+
+      {/* Reset Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showResetModal}
+        title="Restaurar Padrão TAF PMCE?"
+        description="Esta ação redefinirá a série para os 15 exercícios originais de 2 minutos do TAF PMCE."
+        confirmLabel="Sim, Restaurar"
+        variant="amber"
+        onConfirm={() => {
+          resetDefaultWorkout();
+          setShowResetModal(false);
+        }}
+        onCancel={() => setShowResetModal(false)}
+      />
     </div>
   );
 };

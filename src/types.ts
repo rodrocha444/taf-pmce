@@ -24,9 +24,12 @@ export interface WorkoutSessionLog {
   workoutTitle: string;
   date: string;
   durationSeconds: number;
+  realDurationSeconds?: number;
   exercisesCompletedCount: number;
+  exercisesSkippedCount: number;
   totalExercisesCount: number;
   status: 'completed' | 'cancelled';
+  exerciseStatuses?: Record<number, 'completed' | 'skipped'>;
 }
 
 export interface UserSettings {
@@ -52,4 +55,5 @@ export interface ActiveSession {
   prepTimeRemaining: number;
   startTimestamp: number | null;
   lastUpdatedTimestamp: number | null;
+  exerciseStatuses: Record<number, 'completed' | 'skipped'>;
 }

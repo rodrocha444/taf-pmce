@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Edit3, RotateCcw, Clock, ShieldCheck, Flame, Info, CheckCircle2 } from 'lucide-react';
 import { useWorkoutStore } from '../store/workoutStore';
 import { ExerciseCard } from '../components/ExerciseCard';
 import { getExerciseStartTime, formatTimeHoursMins, getTotalWorkoutDuration } from '../utils/formatters';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export const HomeView: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +14,8 @@ export const HomeView: React.FC = () => {
   const resetDefaultWorkout = useWorkoutStore(state => state.resetDefaultWorkout);
   const history = useWorkoutStore(state => state.history);
 
+  const [showResetModal, setShowResetModal] = useState<boolean>(false);
+
   const totalDuration = getTotalWorkoutDuration(workout.exercises);
   const completedCount = history.filter(h => h.status === 'completed').length;
 
@@ -21,6 +24,11 @@ export const HomeView: React.FC = () => {
       startWorkout(workout.id);
     }
     navigate('/player');
+  };
+
+  const handleConfirmReset = () => {
+    resetDefaultWorkout();
+    setShowResetModal(false);
   };
 
   return (
@@ -104,11 +112,7 @@ export const HomeView: React.FC = () => {
               </button>
 
               <button
-                onClick={() => {
-                  if (confirm('Deseja restaurar o treino padrão TAF PMCE com os 15 exercícios originais?')) {
-                    resetDefaultWorkout();
-                  }
-                }}
+                onClick={() => setShowResetModal(true)}
                 className="px-3 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white text-xs transition-all border border-zinc-700 active:scale-95"
                 title="Restaurar Padrão TAF"
               >
@@ -138,6 +142,8 @@ export const HomeView: React.FC = () => {
               exercise={exercise}
               index={idx}
               startTimeFormatted={getExerciseStartTime(workout.exercises, idx)}
+              status={activeSession?.exerciseStatuses?.[idx]}
+              isCurrent={activeSession?.currentExerciseIndex === idx}
             />
           ))}
 
@@ -164,6 +170,17 @@ export const HomeView: React.FC = () => {
           <strong>Dica para Celular:</strong> Durante o treino, o aplicativo manterá a tela do seu dispositivo sempre acesa (Wake Lock) e emitirá bipes e orientações por voz antes de cada troca de exercício.
         </p>
       </div>
+
+      {/* Reset Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showResetModal}
+        title="Restaurar Série Padrão TAF PMCE?"
+        description="Esta ação irá redefinir a lista de exercícios para os 15 blocos oficiais originais do TAF PMCE."
+        confirmLabel="Sim, Restaurar Padrão"
+        variant="amber"
+        onConfirm={handleConfirmReset}
+        onCancel={() => setShowResetModal(false)}
+      />
     </div>
   );
 };

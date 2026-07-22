@@ -1,12 +1,9 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Dumbbell, Edit3, History, Settings, Play } from 'lucide-react';
-import { useWorkoutStore } from '../store/workoutStore';
+import { Dumbbell, Edit3, History, Settings } from 'lucide-react';
 
 export const Header: React.FC = () => {
   const location = useLocation();
-  const activeSession = useWorkoutStore(state => state.activeSession);
-  const startWorkout = useWorkoutStore(state => state.startWorkout);
 
   const isActivePath = (path: string) => location.pathname === path;
 
@@ -34,23 +31,6 @@ export const Header: React.FC = () => {
 
         {/* Navigation Actions */}
         <nav className="flex items-center gap-1 sm:gap-2">
-          {activeSession ? (
-            <Link
-              to="/player"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-zinc-950 font-bold text-xs shadow-md shadow-amber-500/30 animate-pulse-subtle hover:bg-amber-400 transition-all"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Em Andamento</span>
-            </Link>
-          ) : (
-            <button
-              onClick={() => startWorkout()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span className="hidden xs:inline">Iniciar</span>
-            </button>
-          )}
 
           <Link
             to="/edit"

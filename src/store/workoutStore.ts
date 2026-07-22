@@ -20,9 +20,13 @@ interface WorkoutStore {
   pauseWorkout: () => void;
   resumeWorkout: () => void;
   tickSession: () => void;
+  completeExercise: () => void;
+  skipExercise: () => void;
   nextExercise: () => void;
   prevExercise: () => void;
   finishWorkout: (status?: 'completed' | 'cancelled') => void;
+  deleteHistoryLog: (id: string) => void;
+  clearHistory: () => void;
   saveWorkout: (workout: Workout) => void;
   deleteWorkout: (id: string) => void;
   resetDefaultWorkout: () => void;
@@ -78,7 +82,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
           isPreparing,
           prepTimeRemaining: isPreparing ? settings.prepCountdownSeconds : 0,
           startTimestamp: Date.now(),
-          lastUpdatedTimestamp: Date.now()
+          lastUpdatedTimestamp: Date.now(),
+          exerciseStatuses: {}
         };
 
         set({ activeWorkoutId: workout.id, activeSession: initialSession });
@@ -190,16 +195,21 @@ export const useWorkoutStore = create<WorkoutStore>()(
             }
           });
         } else {
-          // Phase finished!
+          // Phase finished naturally!
           if (session.currentPhase === 'work') {
-            // Switch from Execution (WORK) -> Rest (REST)
+            // Execution finished naturally -> mark completed!
+            const newStatuses = {
+              ...session.exerciseStatuses,
+              [session.currentExerciseIndex]: session.exerciseStatuses[session.currentExerciseIndex] || ('completed' as const)
+            };
+
             if (settings.soundBeepEnabled) audioEngine.playGoBeep();
             const restTime = currentExercise.restDurationSeconds || 60;
             const nextExItem = workout.exercises[session.currentExerciseIndex + 1];
 
             if (settings.ttsVoiceEnabled) {
               if (nextExItem) {
-                speechEngine.speak(`Descanso! Respire. Próximo exercício: ${nextExItem.name}`);
+                speechEngine.speak(`Execução concluída! Respire. Próximo exercício: ${nextExItem.name}`);
               } else {
                 speechEngine.speak(`Descanso final! Treino quase concluído!`);
               }
@@ -208,6 +218,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
             set({
               activeSession: {
                 ...session,
+                exerciseStatuses: newStatuses,
                 currentPhase: 'rest',
                 phaseTimeRemaining: restTime,
                 exerciseTimeRemaining: nextExerciseTime,
@@ -216,7 +227,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
               }
             });
           } else {
-            // Switch from Rest -> Next Exercise Work Phase
+            // Rest finished naturally -> Switch from Rest -> Next Exercise Work Phase
             const nextIndex = session.currentExerciseIndex + 1;
 
             if (nextIndex < workout.exercises.length) {
@@ -243,7 +254,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
                   phaseTimeRemaining: nextEx.workDurationSeconds || 60,
                   exerciseTimeRemaining: nextEx.durationSeconds,
                   totalTimeElapsed: nextTotalElapsed,
-                  isPaused: shouldPause, // If autoAdvance is OFF, pause automatically!
+                  isPaused: shouldPause,
                   lastUpdatedTimestamp: Date.now()
                 }
               });
@@ -255,32 +266,43 @@ export const useWorkoutStore = create<WorkoutStore>()(
         }
       },
 
-      nextExercise: () => {
+      // CONCLUIR: Explicitly marks exercise as completed
+      completeExercise: () => {
         const session = get().activeSession;
         if (!session) return;
         const workout = get().getActiveWorkout();
+        const settings = get().settings;
+
+        const currentExIndex = session.currentExerciseIndex;
+        const newStatuses = {
+          ...session.exerciseStatuses,
+          [currentExIndex]: session.exerciseStatuses[currentExIndex] || ('completed' as const)
+        };
 
         if (session.currentPhase === 'work') {
-          // Skip to Rest phase of current exercise
-          const currentEx = workout.exercises[session.currentExerciseIndex];
+          const currentEx = workout.exercises[currentExIndex];
+          if (settings.ttsVoiceEnabled) speechEngine.speak('Execução concluída! Descanso.');
+
           set({
             activeSession: {
               ...session,
+              exerciseStatuses: { ...newStatuses, [currentExIndex]: 'completed' },
               currentPhase: 'rest',
               phaseTimeRemaining: currentEx.restDurationSeconds || 60,
               isPreparing: false
             }
           });
         } else {
-          // Skip to Next Exercise Work phase
-          const nextIndex = session.currentExerciseIndex + 1;
+          // If in rest phase, skipping rest advances directly to next exercise work phase
+          const nextIndex = currentExIndex + 1;
           if (nextIndex < workout.exercises.length) {
             const nextEx = workout.exercises[nextIndex];
-            if (get().settings.ttsVoiceEnabled) speechEngine.speak(`Execução: ${nextEx.name}`);
+            if (settings.ttsVoiceEnabled) speechEngine.speak(`Descanso pulado. Valendo: ${nextEx.name}`);
 
             set({
               activeSession: {
                 ...session,
+                exerciseStatuses: newStatuses,
                 currentExerciseIndex: nextIndex,
                 currentPhase: 'work',
                 phaseTimeRemaining: nextEx.workDurationSeconds || 60,
@@ -289,8 +311,73 @@ export const useWorkoutStore = create<WorkoutStore>()(
               }
             });
           } else {
+            set({ activeSession: { ...session, exerciseStatuses: newStatuses } });
             get().finishWorkout('completed');
           }
+        }
+      },
+
+      // PULAR:
+      // If during WORK phase: marks exercise as SKIPPED and enters rest phase.
+      // If during REST phase: ONLY skips the rest phase (preserves completed status of exercise execution)!
+      skipExercise: () => {
+        const session = get().activeSession;
+        if (!session) return;
+        const workout = get().getActiveWorkout();
+        const settings = get().settings;
+
+        const currentExIndex = session.currentExerciseIndex;
+
+        if (session.currentPhase === 'work') {
+          // Skipping execution phase -> Mark exercise as 'skipped'
+          const currentEx = workout.exercises[currentExIndex];
+          const newStatuses = { ...session.exerciseStatuses, [currentExIndex]: 'skipped' as const };
+
+          if (settings.ttsVoiceEnabled) speechEngine.speak('Execução pulada.');
+
+          set({
+            activeSession: {
+              ...session,
+              exerciseStatuses: newStatuses,
+              currentPhase: 'rest',
+              phaseTimeRemaining: currentEx.restDurationSeconds || 60,
+              isPreparing: false
+            }
+          });
+        } else {
+          // Tapping Pular during REST phase -> Only skip the rest! Preserve exercise status (defaults to completed)!
+          const currentStatus = session.exerciseStatuses[currentExIndex] || 'completed';
+          const newStatuses = { ...session.exerciseStatuses, [currentExIndex]: currentStatus };
+
+          const nextIndex = currentExIndex + 1;
+          if (nextIndex < workout.exercises.length) {
+            const nextEx = workout.exercises[nextIndex];
+            if (settings.ttsVoiceEnabled) speechEngine.speak(`Descanso pulado. Valendo: ${nextEx.name}`);
+
+            set({
+              activeSession: {
+                ...session,
+                exerciseStatuses: newStatuses,
+                currentExerciseIndex: nextIndex,
+                currentPhase: 'work',
+                phaseTimeRemaining: nextEx.workDurationSeconds || 60,
+                exerciseTimeRemaining: nextEx.durationSeconds,
+                isPreparing: false
+              }
+            });
+          } else {
+            set({ activeSession: { ...session, exerciseStatuses: newStatuses } });
+            get().finishWorkout('completed');
+          }
+        }
+      },
+
+      nextExercise: () => {
+        const session = get().activeSession;
+        if (session?.currentPhase === 'work') {
+          get().skipExercise();
+        } else {
+          get().completeExercise();
         }
       },
 
@@ -300,7 +387,6 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const workout = get().getActiveWorkout();
 
         if (session.currentPhase === 'rest') {
-          // Jump back to Work phase of current exercise
           const currentEx = workout.exercises[session.currentExerciseIndex];
           set({
             activeSession: {
@@ -311,7 +397,6 @@ export const useWorkoutStore = create<WorkoutStore>()(
             }
           });
         } else {
-          // Jump back to previous exercise
           const prevIndex = Math.max(0, session.currentExerciseIndex - 1);
           const prevEx = workout.exercises[prevIndex];
 
@@ -337,6 +422,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (session) {
           const workout = workouts.find(w => w.id === session.workoutId) || DEFAULT_TAF_WORKOUT;
 
+          const statuses = session.exerciseStatuses || {};
+          const completedCount = Object.values(statuses).filter(s => s === 'completed').length;
+          const skippedCount = Object.values(statuses).filter(s => s === 'skipped').length;
+
           if (status === 'completed') {
             if (settings.soundBeepEnabled) audioEngine.playCompletionFanfare();
             if (settings.ttsVoiceEnabled) speechEngine.speak('Parabéns! Treino TAF concluído com sucesso!');
@@ -349,15 +438,22 @@ export const useWorkoutStore = create<WorkoutStore>()(
             if (settings.ttsVoiceEnabled) speechEngine.speak('Treino encerrado.');
           }
 
+          const realElapsed = session.startTimestamp
+            ? Math.max(0, Math.floor((Date.now() - session.startTimestamp) / 1000))
+            : session.totalTimeElapsed;
+
           const log: WorkoutSessionLog = {
             id: `log-${Date.now()}`,
             workoutId: workout.id,
             workoutTitle: workout.title,
             date: new Date().toISOString(),
             durationSeconds: session.totalTimeElapsed,
-            exercisesCompletedCount: status === 'completed' ? workout.exercises.length : session.currentExerciseIndex,
+            realDurationSeconds: realElapsed,
+            exercisesCompletedCount: completedCount,
+            exercisesSkippedCount: skippedCount,
             totalExercisesCount: workout.exercises.length,
-            status
+            status,
+            exerciseStatuses: statuses
           };
 
           set(state => ({
@@ -367,6 +463,16 @@ export const useWorkoutStore = create<WorkoutStore>()(
         } else {
           set({ activeSession: null });
         }
+      },
+
+      deleteHistoryLog: (id: string) => {
+        set(state => ({
+          history: state.history.filter(h => h.id !== id)
+        }));
+      },
+
+      clearHistory: () => {
+        set({ history: [] });
       },
 
       saveWorkout: (updatedWorkout) => {

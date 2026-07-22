@@ -4,7 +4,6 @@ import {
   Play,
   Pause,
   SkipForward,
-  SkipBack,
   Volume2,
   VolumeX,
   Mic,
@@ -17,12 +16,16 @@ import {
   Sparkles,
   Coffee,
   Flame,
-  FastForward
+  FastForward,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import { useWorkoutStore } from '../store/workoutStore';
 import { formatSecondsToMMSS, getExerciseStartTime, getTotalWorkoutDuration } from '../utils/formatters';
 import { ProgressRing } from '../components/ProgressRing';
 import { wakeLockManager } from '../utils/wakeLock';
+
+type ConfirmModalType = 'complete' | 'skip' | 'exit' | null;
 
 export const PlayerView: React.FC = () => {
   const navigate = useNavigate();
@@ -33,21 +36,25 @@ export const PlayerView: React.FC = () => {
   const startWorkout = useWorkoutStore(state => state.startWorkout);
   const pauseWorkout = useWorkoutStore(state => state.pauseWorkout);
   const resumeWorkout = useWorkoutStore(state => state.resumeWorkout);
-  const nextExercise = useWorkoutStore(state => state.nextExercise);
-  const prevExercise = useWorkoutStore(state => state.prevExercise);
+  const completeExercise = useWorkoutStore(state => state.completeExercise);
+  const skipExercise = useWorkoutStore(state => state.skipExercise);
   const finishWorkout = useWorkoutStore(state => state.finishWorkout);
   const tickSession = useWorkoutStore(state => state.tickSession);
   const updateSettings = useWorkoutStore(state => state.updateSettings);
 
   const [wakeLockActive, setWakeLockActive] = useState<boolean>(false);
-  const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalType>(null);
+  const [modalCountdown, setModalCountdown] = useState<number>(5);
+  const [wasRunningBeforeModal, setWasRunningBeforeModal] = useState<boolean>(false);
+  const [nowTimestamp, setNowTimestamp] = useState<number>(Date.now());
 
-  // If no session is active, start one automatically for current workout
+  // Continuous 1-second wall-clock timer tick (NEVER PAUSES, persists even if app closes)
   useEffect(() => {
-    if (!activeSession) {
-      startWorkout(workout.id);
-    }
-  }, [activeSession, startWorkout, workout.id]);
+    const interval = setInterval(() => {
+      setNowTimestamp(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Request screen wake lock on mount
   useEffect(() => {
@@ -68,6 +75,24 @@ export const PlayerView: React.FC = () => {
     return () => clearInterval(interval);
   }, [activeSession, tickSession]);
 
+  // Handle 5-second countdown lock for confirmation modal buttons
+  useEffect(() => {
+    if (!confirmModal) return;
+
+    setModalCountdown(5);
+    const interval = setInterval(() => {
+      setModalCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [confirmModal]);
+
   // Trigger vibration feedback on phase/exercise change on mobile
   useEffect(() => {
     if (activeSession && !activeSession.isPreparing && 'vibrate' in navigator) {
@@ -82,17 +107,28 @@ export const PlayerView: React.FC = () => {
   if (!activeSession) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-950 text-white">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto">
-            <Timer className="w-8 h-8 animate-spin" />
+        <div className="text-center space-y-4 max-w-sm">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
+            <Timer className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-bold">Preparando o seu treino...</h2>
-          <button
-            onClick={() => startWorkout(workout.id)}
-            className="px-6 py-3 rounded-xl bg-amber-500 text-zinc-950 font-bold text-sm"
-          >
-            Iniciar Agora
-          </button>
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold">Nenhum treino em andamento</h2>
+            <p className="text-xs text-zinc-400">Toque abaixo para iniciar a série oficial do TAF PMCE</p>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => navigate('/')}
+              className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs"
+            >
+              Voltar ao Início
+            </button>
+            <button
+              onClick={() => startWorkout(workout.id)}
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md shadow-amber-500/20"
+            >
+              Iniciar Treino
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -111,9 +147,59 @@ export const PlayerView: React.FC = () => {
   // Phase Progress Calculations
   const phaseProgress = Math.max(0, Math.min(100, ((currentPhaseMaxDuration - activeSession.phaseTimeRemaining) / currentPhaseMaxDuration) * 100));
 
-  const totalProgress = Math.max(0, Math.min(100, (activeSession.totalTimeElapsed / totalDuration) * 100));
+  // Exercise completed count from statuses
+  const statuses = activeSession.exerciseStatuses || {};
+  const completedCount = Object.values(statuses).filter(s => s === 'completed').length;
+  const skippedCount = Object.values(statuses).filter(s => s === 'skipped').length;
 
-  const handleFinishEarly = () => {
+  let completedSeconds = 0;
+  let skippedSeconds = 0;
+
+  workout.exercises.forEach((ex, idx) => {
+    const status = statuses[idx];
+    if (status === 'completed') {
+      completedSeconds += ex.durationSeconds;
+    } else if (status === 'skipped') {
+      skippedSeconds += ex.durationSeconds;
+    } else if (idx === currentExerciseIndex) {
+      const elapsed = Math.max(0, ex.durationSeconds - activeSession.exerciseTimeRemaining);
+      completedSeconds += elapsed;
+    }
+  });
+
+  const realElapsedSeconds = activeSession.startTimestamp
+    ? Math.max(0, Math.floor((nowTimestamp - activeSession.startTimestamp) / 1000))
+    : activeSession.totalTimeElapsed;
+
+  const openModal = (type: ConfirmModalType) => {
+    if (activeSession && !activeSession.isPaused) {
+      setWasRunningBeforeModal(true);
+      pauseWorkout();
+    } else {
+      setWasRunningBeforeModal(false);
+    }
+    setConfirmModal(type);
+  };
+
+  const closeModal = () => {
+    setConfirmModal(null);
+    if (wasRunningBeforeModal && activeSession?.isPaused) {
+      resumeWorkout();
+    }
+  };
+
+  const handleConfirmComplete = () => {
+    setConfirmModal(null);
+    completeExercise();
+  };
+
+  const handleConfirmSkip = () => {
+    setConfirmModal(null);
+    skipExercise();
+  };
+
+  const handleConfirmExit = () => {
+    setConfirmModal(null);
     finishWorkout('cancelled');
     navigate('/');
   };
@@ -123,7 +209,7 @@ export const PlayerView: React.FC = () => {
       {/* Top Header Bar */}
       <div className="flex items-center justify-between gap-3 max-w-xl mx-auto w-full pt-1">
         <button
-          onClick={() => setShowExitConfirm(true)}
+          onClick={() => openModal('exit')}
           className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all flex items-center gap-1 text-xs font-semibold"
         >
           <XCircle className="w-4 h-4 text-rose-400" />
@@ -141,11 +227,10 @@ export const PlayerView: React.FC = () => {
 
           <button
             onClick={() => updateSettings({ autoAdvanceBlocks: !settings.autoAdvanceBlocks })}
-            className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${
-              settings.autoAdvanceBlocks
+            className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${settings.autoAdvanceBlocks
                 ? 'bg-zinc-900 text-amber-400 border-amber-500/30'
                 : 'bg-zinc-900/50 text-zinc-500 border-zinc-800'
-            }`}
+              }`}
             title={settings.autoAdvanceBlocks ? 'Avanço Automático Ativado' : 'Avanço Automático Desativado'}
           >
             <FastForward className="w-4 h-4" />
@@ -154,11 +239,10 @@ export const PlayerView: React.FC = () => {
 
           <button
             onClick={() => updateSettings({ soundBeepEnabled: !settings.soundBeepEnabled })}
-            className={`p-2 rounded-xl border text-xs font-medium transition-all ${
-              settings.soundBeepEnabled
+            className={`p-2 rounded-xl border text-xs font-medium transition-all ${settings.soundBeepEnabled
                 ? 'bg-zinc-900 text-amber-400 border-amber-500/30'
                 : 'bg-zinc-900/50 text-zinc-500 border-zinc-800'
-            }`}
+              }`}
             title="Bipes Sonoros"
           >
             {settings.soundBeepEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -166,11 +250,10 @@ export const PlayerView: React.FC = () => {
 
           <button
             onClick={() => updateSettings({ ttsVoiceEnabled: !settings.ttsVoiceEnabled })}
-            className={`p-2 rounded-xl border text-xs font-medium transition-all ${
-              settings.ttsVoiceEnabled
+            className={`p-2 rounded-xl border text-xs font-medium transition-all ${settings.ttsVoiceEnabled
                 ? 'bg-zinc-900 text-amber-400 border-amber-500/30'
                 : 'bg-zinc-900/50 text-zinc-500 border-zinc-800'
-            }`}
+              }`}
             title="Voz Guiada PT-BR"
           >
             {settings.ttsVoiceEnabled ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
@@ -205,13 +288,30 @@ export const PlayerView: React.FC = () => {
           <>
             {/* Exercise Header Badges */}
             <div className="w-full text-center space-y-2">
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <span className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-amber-400 font-mono font-bold text-xs">
                   BLOCO {currentExerciseIndex + 1} DE {workout.exercises.length}
                 </span>
-                <span className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 font-mono font-bold text-xs">
-                  INÍCIO {getExerciseStartTime(workout.exercises, currentExerciseIndex)}
+
+                {/* Continuous Real Time Clock Badge (NEVER PAUSES) */}
+                <span className="px-3 py-1 rounded-full bg-zinc-900 border border-amber-500/40 text-amber-300 font-mono font-bold text-xs flex items-center gap-1.5" title="Tempo total real percorrido desde o início (sem pausas)">
+                  <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                  <span>Tempo Geral: {formatSecondsToMMSS(realElapsedSeconds)}</span>
                 </span>
+
+                {/* Status Badges Header */}
+                <div className="flex items-center gap-1.5 font-mono text-xs font-bold">
+                  {completedCount > 0 && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                      ✓ {completedCount}
+                    </span>
+                  )}
+                  {skippedCount > 0 && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400">
+                      ⏭ {skippedCount}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Dynamic Phase Indicator Badge (EXECUÇÃO vs DESCANSO) */}
@@ -266,9 +366,8 @@ export const PlayerView: React.FC = () => {
             {/* Next Step / Exercise Preview Box */}
             <div className="w-full bg-zinc-900/80 border border-zinc-800 rounded-2xl p-3.5 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 overflow-hidden">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${
-                  isWorkPhase ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'
-                }`}>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${isWorkPhase ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'
+                  }`}>
                   {isWorkPhase ? <Coffee className="w-4 h-4" /> : <Flame className="w-4 h-4" />}
                 </div>
                 <div className="truncate">
@@ -294,41 +393,99 @@ export const PlayerView: React.FC = () => {
           </>
         )}
 
-        {/* Overall Workout Progress Bar */}
+        {/* Multi-Colored Segmented Workout Progress Bar */}
         <div className="w-full space-y-1.5 pt-1">
-          <div className="flex justify-between text-xs font-medium text-zinc-400 font-mono">
-            <span>Progresso Total: {Math.round(totalProgress)}%</span>
-            <span>{formatSecondsToMMSS(activeSession.totalTimeElapsed)} / {formatSecondsToMMSS(totalDuration)}</span>
+          <div className="flex flex-wrap justify-between items-center text-xs font-medium font-mono gap-1">
+            <div className="flex items-center gap-2.5">
+              <span className="text-emerald-400 font-bold flex items-center gap-1" title="Tempo total dos exercícios concluídos">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                Concluído: {formatSecondsToMMSS(completedSeconds)} ({completedCount})
+              </span>
+              {skippedCount > 0 && (
+                <span className="text-orange-400 font-bold flex items-center gap-1" title="Tempo total dos exercícios pulados">
+                  <span className="w-2 h-2 rounded-full bg-orange-500" />
+                  Pulado: {formatSecondsToMMSS(skippedSeconds)} ({skippedCount})
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-zinc-400">
+              <span title="Tempo total real percorrido no relógio (sem pausas)">Geral: <strong className="text-amber-400">{formatSecondsToMMSS(realElapsedSeconds)}</strong></span>
+              <span>•</span>
+              <span title="Tempo acumulado (concluído + pulado)">{formatSecondsToMMSS(completedSeconds + skippedSeconds)} / {formatSecondsToMMSS(totalDuration)}</span>
+            </div>
           </div>
-          <div className="h-2 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
-            <div
-              className="h-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-500"
-              style={{ width: `${totalProgress}%` }}
-            />
+
+          {/* Segmented Timeline Bar */}
+          <div className="h-3.5 w-full bg-zinc-900/90 rounded-full overflow-hidden border border-zinc-800/80 flex gap-0.5 p-0.5">
+            {workout.exercises.map((ex, idx) => {
+              const status = activeSession.exerciseStatuses?.[idx];
+              const isCurrent = currentExerciseIndex === idx;
+              const segWidth = (ex.durationSeconds / totalDuration) * 100;
+
+              if (status === 'completed') {
+                return (
+                  <div
+                    key={ex.id}
+                    className="h-full bg-emerald-500 rounded-sm transition-all duration-300"
+                    style={{ width: `${segWidth}%` }}
+                    title={`#${idx + 1} ${ex.name}: Concluído`}
+                  />
+                );
+              }
+
+              if (status === 'skipped') {
+                return (
+                  <div
+                    key={ex.id}
+                    className="h-full bg-orange-500 rounded-sm transition-all duration-300"
+                    style={{ width: `${segWidth}%` }}
+                    title={`#${idx + 1} ${ex.name}: Pulado`}
+                  />
+                );
+              }
+
+              if (isCurrent) {
+                const elapsedInEx = ex.durationSeconds - activeSession.exerciseTimeRemaining;
+                const currentPct = Math.max(0, Math.min(100, (elapsedInEx / ex.durationSeconds) * 100));
+
+                return (
+                  <div
+                    key={ex.id}
+                    className="h-full bg-zinc-800 rounded-sm relative overflow-hidden"
+                    style={{ width: `${segWidth}%` }}
+                    title={`#${idx + 1} ${ex.name}: Em Execução`}
+                  >
+                    <div
+                      className={`h-full ${isWorkPhase ? 'bg-amber-400' : 'bg-cyan-400'} transition-all duration-300`}
+                      style={{ width: `${currentPct}%` }}
+                    />
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={ex.id}
+                  className="h-full bg-zinc-800/60 rounded-sm"
+                  style={{ width: `${segWidth}%` }}
+                  title={`#${idx + 1} ${ex.name}: Pendente`}
+                />
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Main Touch Controls Bar (Optimized for Mobile Hands) */}
+      {/* Main Touch Controls Bar (3 Buttons for Mobile) */}
       <div className="max-w-xl mx-auto w-full pt-1 pb-2">
         <div className="grid grid-cols-3 gap-3 items-center">
-          {/* Previous Exercise Button */}
-          <button
-            onClick={prevExercise}
-            disabled={currentExerciseIndex === 0 && activeSession.currentPhase === 'work'}
-            className="w-full h-16 rounded-2xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 active:scale-95 disabled:opacity-30 disabled:pointer-events-none text-zinc-300 font-bold flex flex-col items-center justify-center gap-1 transition-all"
-          >
-            <SkipBack className="w-5 h-5 fill-current" />
-            <span className="text-[10px] uppercase font-bold tracking-wider">Voltar</span>
-          </button>
-
           {/* Pause / Play Primary Giant Button */}
           {activeSession.isPaused ? (
             <button
               onClick={resumeWorkout}
               className="w-full h-16 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-zinc-950 font-black shadow-xl shadow-amber-500/30 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer"
             >
-              <Play className="w-7 h-7 fill-current" />
+              <Play className="w-6 h-6 fill-current" />
               <span className="text-[10px] uppercase font-black tracking-wider">Continuar</span>
             </button>
           ) : (
@@ -336,24 +493,115 @@ export const PlayerView: React.FC = () => {
               onClick={pauseWorkout}
               className="w-full h-16 rounded-2xl bg-zinc-800 border border-amber-500/50 hover:bg-zinc-700 active:scale-95 text-amber-400 font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer"
             >
-              <Pause className="w-7 h-7 fill-current" />
+              <Pause className="w-6 h-6 fill-current" />
               <span className="text-[10px] uppercase font-black tracking-wider">Pausar</span>
             </button>
           )}
 
-          {/* Next Exercise Button */}
+          {/* Pular Button (Differentiated for Exercise vs Rest) */}
+          {isWorkPhase ? (
+            <button
+              onClick={() => openModal('skip')}
+              className="w-full h-16 rounded-2xl bg-zinc-900 border border-orange-500/40 hover:bg-zinc-800 active:scale-95 text-orange-400 font-bold flex flex-col items-center justify-center gap-1 transition-all"
+              title="Pular a execução deste exercício (solicita confirmação)"
+            >
+              <SkipForward className="w-5 h-5 fill-current text-orange-400" />
+              <span className="text-[10px] uppercase font-bold tracking-wider text-orange-400">Pular Exercício</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => openModal('skip')}
+              className="w-full h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 hover:bg-cyan-500/20 active:scale-95 text-cyan-400 font-bold flex flex-col items-center justify-center gap-1 transition-all"
+              title="Pular o tempo de descanso e iniciar próximo exercício (solicita confirmação)"
+            >
+              <Coffee className="w-5 h-5 text-cyan-400" />
+              <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400">Pular Descanso</span>
+            </button>
+          )}
+
+          {/* Concluir ✓ Button */}
           <button
-            onClick={nextExercise}
-            className="w-full h-16 rounded-2xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 active:scale-95 text-zinc-300 font-bold flex flex-col items-center justify-center gap-1 transition-all"
+            onClick={() => openModal('complete')}
+            className="w-full h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 hover:bg-emerald-500/20 active:scale-95 text-emerald-400 font-bold flex flex-col items-center justify-center gap-1 transition-all"
+            title="Concluir exercício (solicita confirmação)"
           >
-            <SkipForward className="w-5 h-5 fill-current" />
-            <span className="text-[10px] uppercase font-bold tracking-wider">Pular</span>
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Concluir</span>
           </button>
         </div>
       </div>
 
-      {/* Confirmation Modal to Exit */}
-      {showExitConfirm && (
+      {/* Confirmation Modal: CONCLUIR */}
+      {confirmModal === 'complete' && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/20">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-white">Marcar como Concluído?</h3>
+              <p className="text-xs text-zinc-400">
+                Confirmar a conclusão do exercício <strong className="text-white">"{currentExercise?.name}"</strong> e avançar.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={closeModal}
+                className="w-full py-3 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700 active:scale-95"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmComplete}
+                className="w-full py-3 rounded-xl bg-emerald-500 text-zinc-950 font-bold text-xs hover:bg-emerald-400 active:scale-95 shadow-lg shadow-emerald-500/30 transition-all cursor-pointer"
+              >
+                Sim, Concluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal: PULAR */}
+      {confirmModal === 'skip' && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 text-orange-400 flex items-center justify-center mx-auto border border-orange-500/20">
+              <SkipForward className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-white">
+                {isWorkPhase ? 'Confirmar Pular Exercício?' : 'Confirmar Pular Descanso?'}
+              </h3>
+              <p className="text-xs text-zinc-400">
+                {isWorkPhase
+                  ? `Deseja pular a execução de "${currentExercise?.name}"?`
+                  : `Deseja encerrar o descanso e ir direto para o próximo exercício?`
+                }
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={closeModal}
+                className="w-full py-3 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700 active:scale-95"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmSkip}
+                className="w-full py-3 rounded-xl bg-orange-500 text-zinc-950 font-bold text-xs hover:bg-orange-400 active:scale-95 shadow-lg shadow-orange-500/30 transition-all cursor-pointer"
+              >
+                Sim, Pular
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal: ENCERRAR */}
+      {confirmModal === 'exit' && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
             <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto border border-rose-500/20">
@@ -362,22 +610,23 @@ export const PlayerView: React.FC = () => {
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-white">Deseja parar o treino?</h3>
               <p className="text-xs text-zinc-400">
-                Seu progresso até o momento será salvo no histórico de treinos.
+                Seu progresso até o momento ({completedCount} concluídos, {skippedCount} pulados) será salvo no histórico.
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
-                onClick={() => setShowExitConfirm(false)}
+                onClick={closeModal}
                 className="w-full py-3 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700 active:scale-95"
               >
                 Voltar ao Treino
               </button>
               <button
-                onClick={handleFinishEarly}
-                className="w-full py-3 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-500 active:scale-95 shadow-lg shadow-rose-600/30"
+                onClick={handleConfirmExit}
+                disabled={modalCountdown > 0}
+                className="w-full py-3 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-500 active:scale-95 shadow-lg shadow-rose-600/30 disabled:opacity-40 disabled:pointer-events-none transition-all"
               >
-                Encerrar Treino
+                {modalCountdown > 0 ? `Confirmar (${modalCountdown}s)` : 'Encerrar Treino'}
               </button>
             </div>
           </div>

@@ -8,6 +8,7 @@ interface ExerciseCardProps {
   index: number;
   startTimeFormatted: string;
   isCurrent?: boolean;
+  status?: 'completed' | 'skipped';
   onSelect?: () => void;
   showActions?: boolean;
   onEdit?: () => void;
@@ -75,6 +76,16 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
               <h3 className="text-base font-bold text-white group-hover:text-amber-300 transition-colors">
                 {exercise.name}
               </h3>
+              {status === 'completed' && (
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                  ✓ Concluído
+                </span>
+              )}
+              {status === 'skipped' && (
+                <span className="px-2 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider">
+                  ⏭ Pulado
+                </span>
+              )}
             </div>
             {exercise.focusNotes && (
               <p className="text-xs text-zinc-400 mt-0.5 line-clamp-2 leading-relaxed">
