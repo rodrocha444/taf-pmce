@@ -74,6 +74,9 @@ export const EditView: React.FC = () => {
     setFormName(exercise.name);
     setFormNotes(exercise.focusNotes || '');
 
+    const matchingCat = exerciseCatalog.find(c => c.id === exercise.catalogId || c.name.trim().toLowerCase() === exercise.name.trim().toLowerCase());
+    setSelectedCatalogId(matchingCat ? matchingCat.id : '');
+
     const isReps = exercise.executionType === 'reps' || (exercise.targetReps !== undefined && exercise.targetReps > 0);
     setFormExecutionType(isReps ? 'reps' : 'time');
     setFormTargetReps(exercise.targetReps ?? 10);
@@ -284,43 +287,35 @@ export const EditView: React.FC = () => {
             </h3>
 
             <div className="space-y-3.5 text-xs">
-              {isAdding && (
-                <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
-                      Selecione da Biblioteca de Exercícios
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/exercises')}
-                      className="text-[11px] font-bold text-amber-400 hover:underline flex items-center gap-1"
-                    >
-                      <BookOpen className="w-3.5 h-3.5" />
-                      <span>Gerenciar</span>
-                    </button>
-                  </div>
-
-                  <select
-                    value={selectedCatalogId}
-                    onChange={e => handleSelectCatalogItem(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
+              {/* Seletor Único de Exercício da Biblioteca */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-zinc-300">
+                    Exercício
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/exercises')}
+                    className="text-[11px] font-bold text-amber-400 hover:underline flex items-center gap-1"
                   >
-                    <option value="">-- Escolher da Biblioteca --</option>
-                    {exerciseCatalog.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Biblioteca</span>
+                  </button>
                 </div>
-              )}
 
-              <div>
-                <label className="block text-zinc-400 font-semibold mb-1 text-[11px]">Exercício Selecionado</label>
-                <div className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 font-bold text-xs flex items-center justify-between">
-                  <span>{formName || 'Nenhum exercício selecionado'}</span>
-                  <span className="text-[10px] text-zinc-500 font-mono">Da Biblioteca</span>
-                </div>
+                <select
+                  required
+                  value={selectedCatalogId}
+                  onChange={e => handleSelectCatalogItem(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none focus:border-amber-400"
+                >
+                  <option value="">-- Selecionar Exercício da Biblioteca --</option>
+                  {exerciseCatalog.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
