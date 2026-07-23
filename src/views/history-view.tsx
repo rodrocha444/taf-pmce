@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { History, Award, CheckCircle2, XCircle, ArrowLeft, Calendar, Clock, Trash2 } from 'lucide-react';
+import { History, Award, CheckCircle2, XCircle, ArrowLeft, Calendar, Clock, Trash2, BarChart3 } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 import { formatDate, formatTimeHoursMins } from '../utils/formatters';
 import { ConfirmModal } from '../components/confirm-modal';
@@ -34,13 +34,23 @@ export const HistoryView: React.FC = () => {
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
       {/* Top Bar */}
       <div className="flex items-center justify-between gap-3">
-        <button
-          onClick={() => navigate('/')}
-          className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Voltar</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/')}
+            className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Voltar</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/reports')}
+            className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 hover:border-amber-500/30 flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer"
+          >
+            <BarChart3 className="w-4 h-4 text-amber-400" />
+            <span>Relatórios</span>
+          </button>
+        </div>
 
         <h1 className="text-xl font-bold text-white font-['Outfit']">Histórico de Treinos</h1>
 

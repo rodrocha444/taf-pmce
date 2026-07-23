@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Play, Edit3, Clock, ShieldCheck, Flame, CheckCircle2, ChevronRight, Dumbbell, Info } from 'lucide-react';
+import { Play, Edit3, Clock, ShieldCheck, Flame, CheckCircle2, ChevronRight, Dumbbell, Info, Settings } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 import { ExerciseCard } from '../components/exercise-card';
 import { getExerciseStartTime, formatTimeHoursMins, getTotalWorkoutDuration } from '../utils/formatters';
@@ -41,10 +41,20 @@ export const HomeView: React.FC = () => {
           </div>
         </div>
 
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          OFFLINE
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            OFFLINE
+          </span>
+
+          <button
+            onClick={() => navigate('/settings')}
+            className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-amber-400 hover:border-amber-500/30 active:scale-95 transition-all cursor-pointer"
+            title="Ajustes e Configurações"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
       </div>
       {/* Active Session Running Alert Banner */}
       {activeSession && (
