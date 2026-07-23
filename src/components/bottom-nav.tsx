@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, History, Settings, Dumbbell, Play, Zap } from 'lucide-react';
+import { Home, History, BarChart3, Dumbbell, Play, Zap } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 
 export const BottomNav: React.FC = () => {
@@ -84,13 +84,13 @@ export const BottomNav: React.FC = () => {
         </Link>
 
         <Link
-          to="/settings"
+          to="/reports"
           className={`flex flex-col items-center gap-1 p-1.5 rounded-xl text-[10px] font-bold transition-all ${
-            isActive('/settings') ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
+            isActive('/reports') ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
           }`}
         >
-          <Settings className="w-5 h-5" />
-          <span>Ajustes</span>
+          <BarChart3 className="w-5 h-5" />
+          <span>Relatórios</span>
         </Link>
       </nav>
     </>
