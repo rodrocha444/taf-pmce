@@ -3,15 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Save, ArrowLeft, Trash2, Edit2, Play, Coffee, Target, BookOpen } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 import type { Exercise } from '../types';
-import { formatSecondsToMMSS, getExerciseStartTime, getTotalWorkoutDuration } from '../utils/formatters';
+import { formatSecondsToMMSS, getExerciseStartTime } from '../utils/formatters';
 import { ConfirmModal } from '../components/confirm-modal';
 
 export const EditView: React.FC = () => {
   const navigate = useNavigate();
   const workout = useWorkoutStore(state => state.getActiveWorkout());
-  const workouts = useWorkoutStore(state => state.workouts);
   const exerciseCatalog = useWorkoutStore(state => state.exerciseCatalog || []);
-  const setActiveWorkoutId = useWorkoutStore(state => state.setActiveWorkoutId);
   const addExerciseToWorkout = useWorkoutStore(state => state.addExerciseToWorkout);
   const updateExerciseInWorkout = useWorkoutStore(state => state.updateExerciseInWorkout);
   const deleteExerciseFromWorkout = useWorkoutStore(state => state.deleteExerciseFromWorkout);
@@ -142,47 +140,28 @@ export const EditView: React.FC = () => {
     };
   }, [isAdding, editingExercise]);
 
-  const totalDuration = getTotalWorkoutDuration(workout.exercises);
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Top Header: Voltar | Nome do Treino | Novo Exercício */}
+      <div className="flex items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
         <button
-          onClick={() => navigate('/')}
-          className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold self-start"
+          onClick={() => navigate('/workouts')}
+          className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold shrink-0"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Voltar</span>
         </button>
 
-        <div className="flex items-center gap-2">
-          <select
-            value={workout.id}
-            onChange={e => setActiveWorkoutId(e.target.value)}
-            className="px-3.5 py-2 rounded-xl bg-zinc-900 border border-amber-500/40 text-amber-300 text-xs font-bold focus:outline-none cursor-pointer"
-          >
-            {workouts.map(w => (
-              <option key={w.id} value={w.id}>
-                {w.title} ({w.exercises.length} ex)
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Overview Info Banner */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-base font-bold text-white">{workout.title}</h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Duração Total Atual: <strong className="text-amber-400 font-mono">{formatSecondsToMMSS(totalDuration)}</strong> ({workout.exercises.length} exercícios)
-          </p>
+        <div className="text-center px-2 min-w-0">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400 block">Editando Treino</span>
+          <h2 className="text-base sm:text-lg font-bold text-white font-['Outfit'] truncate">
+            {workout.title}
+          </h2>
         </div>
 
         <button
           onClick={openAddModal}
-          className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
+          className="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Novo Exercício</span>
@@ -191,7 +170,22 @@ export const EditView: React.FC = () => {
 
       {/* Exercises List */}
       <div className="space-y-3">
-        {workout.exercises.map((exercise, idx) => {
+        {workout.exercises.length === 0 ? (
+          <div className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-8 text-center space-y-3">
+            <h3 className="text-base font-bold text-white font-['Outfit']">Nenhum Exercício no Treino</h3>
+            <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+              Este treino ainda não possui exercícios. Clique em "+ Novo Exercício" para adicionar o primeiro!
+            </p>
+            <button
+              onClick={openAddModal}
+              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Novo Exercício</span>
+            </button>
+          </div>
+        ) : (
+          workout.exercises.map((exercise, idx) => {
           const isRepsMode = exercise.executionType === 'reps' || (exercise.targetReps !== undefined && exercise.targetReps > 0);
 
           return (
@@ -272,7 +266,8 @@ export const EditView: React.FC = () => {
               </div>
             </div>
           );
-        })}
+        })
+      )}
       </div>
 
       {/* Form Modal (Add / Edit Exercise) */}
