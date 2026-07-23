@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RotateCcw, Save, ArrowLeft, Trash2, Edit2, Play, Coffee, Target, BookOpen } from 'lucide-react';
+import { Plus, Save, ArrowLeft, Trash2, Edit2, Play, Coffee, Target, BookOpen } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 import type { Exercise } from '../types';
 import { formatSecondsToMMSS, getExerciseStartTime, getTotalWorkoutDuration } from '../utils/formatters';
@@ -12,8 +12,6 @@ export const EditView: React.FC = () => {
   const workouts = useWorkoutStore(state => state.workouts);
   const exerciseCatalog = useWorkoutStore(state => state.exerciseCatalog || []);
   const setActiveWorkoutId = useWorkoutStore(state => state.setActiveWorkoutId);
-  const resetDefaultWorkout = useWorkoutStore(state => state.resetDefaultWorkout);
-
   const addExerciseToWorkout = useWorkoutStore(state => state.addExerciseToWorkout);
   const updateExerciseInWorkout = useWorkoutStore(state => state.updateExerciseInWorkout);
   const deleteExerciseFromWorkout = useWorkoutStore(state => state.deleteExerciseFromWorkout);
@@ -23,7 +21,6 @@ export const EditView: React.FC = () => {
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [isAdding, setIsAdding] = useState<boolean>(false);
   const [deleteExerciseTarget, setDeleteExerciseTarget] = useState<Exercise | null>(null);
-  const [showResetModal, setShowResetModal] = useState<boolean>(false);
 
   const [selectedCatalogId, setSelectedCatalogId] = useState<string>('');
   const [formName, setFormName] = useState<string>('');
@@ -174,17 +171,6 @@ export const EditView: React.FC = () => {
               </option>
             ))}
           </select>
-
-          {workout.isDefault && (
-            <button
-              onClick={() => setShowResetModal(true)}
-              className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 hover:bg-zinc-800 text-xs font-semibold flex items-center gap-1 shrink-0"
-              title="Restaurar Padrão TAF"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span className="hidden sm:inline">Restaurar TAF</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -336,15 +322,11 @@ export const EditView: React.FC = () => {
               )}
 
               <div>
-                <label className="block text-zinc-300 font-semibold mb-1">Nome do Exercício</label>
-                <input
-                  type="text"
-                  required
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
-                  placeholder="Ex: Flexão Militar"
-                  className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
-                />
+                <label className="block text-zinc-400 font-semibold mb-1 text-[11px]">Exercício Selecionado</label>
+                <div className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 font-bold text-xs flex items-center justify-between">
+                  <span>{formName || 'Nenhum exercício selecionado'}</span>
+                  <span className="text-[10px] text-zinc-500 font-mono">Da Biblioteca</span>
+                </div>
               </div>
 
               <div>
@@ -528,19 +510,7 @@ export const EditView: React.FC = () => {
         onCancel={() => setDeleteExerciseTarget(null)}
       />
 
-      {/* Reset Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showResetModal}
-        title="Restaurar Padrão TAF PMCE?"
-        description="Esta ação redefinirá a série para os 15 exercícios originais de 2 minutos do TAF PMCE."
-        confirmLabel="Sim, Restaurar"
-        variant="amber"
-        onConfirm={() => {
-          resetDefaultWorkout();
-          setShowResetModal(false);
-        }}
-        onCancel={() => setShowResetModal(false)}
-      />
+
     </div>
   );
 };

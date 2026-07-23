@@ -147,8 +147,24 @@ export const ExercisesView: React.FC = () => {
       </div>
 
       {/* Exercises List Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {exerciseCatalog.map(item => {
+      {exerciseCatalog.length === 0 ? (
+        <div className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-8 text-center space-y-3">
+          <BookOpen className="w-10 h-10 text-amber-400 mx-auto opacity-80" />
+          <h3 className="text-base font-bold text-white font-['Outfit']">Biblioteca Vazia</h3>
+          <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+            Você ainda não tem exercícios cadastrados na biblioteca. Clique no botão "+ Criar Exercício" para adicionar seu primeiro exercício!
+          </p>
+          <button
+            onClick={openCreateModal}
+            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Criar Primeiro Exercício</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {exerciseCatalog.map(item => {
           const { logs, maxVal } = getExerciseLogs(item.name);
           const isReps = item.executionType === 'reps';
 
@@ -183,15 +199,13 @@ export const ExercisesView: React.FC = () => {
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    {!item.isDefault && (
-                      <button
-                        onClick={() => setDeleteTargetItem(item)}
-                        className="p-1.5 text-zinc-500 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors"
-                        title="Excluir exercício"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setDeleteTargetItem(item)}
+                      className="p-1.5 text-zinc-500 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors"
+                      title="Excluir exercício"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
@@ -247,6 +261,7 @@ export const ExercisesView: React.FC = () => {
           );
         })}
       </div>
+      )}
 
       {/* CREATE / EDIT MODAL (Mantém apenas Nome, Tipo de Execução e Informações) */}
       {showModal && (

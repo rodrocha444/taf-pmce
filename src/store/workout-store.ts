@@ -96,7 +96,6 @@ interface WorkoutStore {
   addManualHistoryLog: (log: Omit<WorkoutSessionLog, 'id'>) => void;
   saveWorkout: (workout: Workout) => void;
   deleteWorkout: (id: string) => void;
-  resetDefaultWorkout: () => void;
   resetAllDataToDefaults: () => void;
   updateSettings: (settings: Partial<UserSettings>) => void;
   addExerciseToWorkout: (workoutId: string, exercise: Omit<Exercise, 'id' | 'durationSeconds'>) => void;
@@ -116,8 +115,8 @@ interface WorkoutStore {
 export const useWorkoutStore = create<WorkoutStore>()(
   persist(
     (set, get) => ({
-      workouts: [DEFAULT_TAF_WORKOUT],
-      activeWorkoutId: DEFAULT_TAF_WORKOUT.id,
+      workouts: [],
+      activeWorkoutId: '',
       activeSession: null,
       history: [],
       settings: {
@@ -128,9 +127,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
         autoAdvanceBlocks: true,
         volume: 1
       },
-      runningWorkouts: DEFAULT_RUNNING_WORKOUTS,
+      runningWorkouts: [],
       runningHistory: [],
-      exerciseCatalog: DEFAULT_EXERCISE_CATALOG,
+      exerciseCatalog: [],
 
       addCatalogExercise: (itemData) => {
         const newItem: ExerciseCatalogItem = {
@@ -756,28 +755,31 @@ export const useWorkoutStore = create<WorkoutStore>()(
       },
 
       deleteWorkout: (id) => {
-        set(state => ({
-          workouts: state.workouts.filter(w => w.id !== id || w.isDefault),
-          activeWorkoutId: state.activeWorkoutId === id ? DEFAULT_TAF_WORKOUT.id : state.activeWorkoutId
-        }));
-      },
-
-      resetDefaultWorkout: () => {
-        set(state => ({
-          workouts: state.workouts.map(w => w.id === DEFAULT_TAF_WORKOUT.id ? { ...DEFAULT_TAF_WORKOUT, updatedAt: new Date().toISOString() } : w)
-        }));
+        set(state => {
+          const updatedWorkouts = state.workouts.filter(w => w.id !== id);
+          return {
+            workouts: updatedWorkouts,
+            activeWorkoutId: state.activeWorkoutId === id ? (updatedWorkouts[0]?.id || '') : state.activeWorkoutId
+          };
+        });
       },
 
       resetAllDataToDefaults: () => {
         set({
-          workouts: [DEFAULT_TAF_WORKOUT],
-          activeWorkoutId: DEFAULT_TAF_WORKOUT.id,
-          exerciseCatalog: DEFAULT_EXERCISE_CATALOG,
+          workouts: [],
+          activeWorkoutId: '',
+          exerciseCatalog: [],
+          runningWorkouts: [],
+          history: [],
+          runningHistory: [],
           activeSession: null
         });
         try {
-          db.workouts.clear().then(() => db.workouts.put(DEFAULT_TAF_WORKOUT)).catch(err => console.warn('Dexie error:', err));
-          db.exerciseCatalog.clear().then(() => db.exerciseCatalog.bulkPut(DEFAULT_EXERCISE_CATALOG)).catch(err => console.warn('Dexie error:', err));
+          db.workouts.clear();
+          db.exerciseCatalog.clear();
+          db.history.clear();
+          db.runningWorkouts.clear();
+          db.runningHistory.clear();
         } catch (e) {
           console.warn('db clear error:', e);
         }

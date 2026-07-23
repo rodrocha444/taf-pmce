@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Plus, Play, Edit3, Trash2, RotateCcw, Clock, ShieldCheck, CheckCircle2, Flame, Edit, BookOpen } from 'lucide-react';
+import { Dumbbell, Plus, Play, Edit3, Trash2, Clock, ShieldCheck, CheckCircle2, Flame, Edit, BookOpen } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 import { formatTimeHoursMins, getTotalWorkoutDuration } from '../utils/formatters';
 import { ConfirmModal } from '../components/confirm-modal';
@@ -15,14 +15,12 @@ export const WorkoutsView: React.FC = () => {
   const createWorkout = useWorkoutStore(state => state.createWorkout);
   const deleteWorkout = useWorkoutStore(state => state.deleteWorkout);
   const updateWorkoutDetails = useWorkoutStore(state => state.updateWorkoutDetails);
-  const resetDefaultWorkout = useWorkoutStore(state => state.resetDefaultWorkout);
   const history = useWorkoutStore(state => state.history);
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [editingDetailsWorkout, setEditingDetailsWorkout] = useState<Workout | null>(null);
   const [deleteWorkoutTarget, setDeleteWorkoutTarget] = useState<Workout | null>(null);
-  const [showResetModal, setShowResetModal] = useState<boolean>(false);
 
   const [formTitle, setFormTitle] = useState<string>('');
   const [formDescription, setFormDescription] = useState<string>('');
@@ -98,8 +96,24 @@ export const WorkoutsView: React.FC = () => {
       </div>
 
       {/* Workouts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {workouts.map(w => {
+      {workouts.length === 0 ? (
+        <div className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-8 text-center space-y-3">
+          <Dumbbell className="w-10 h-10 text-amber-400 mx-auto opacity-80" />
+          <h3 className="text-base font-bold text-white font-['Outfit']">Nenhum Treino Cadastrado</h3>
+          <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+            Você ainda não tem treinos criados. Clique no botão "+ Criar Treino" para cadastrar seu treino personalizado!
+          </p>
+          <button
+            onClick={handleOpenCreateModal}
+            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Criar Primeiro Treino</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {workouts.map(w => {
           const isActive = w.id === activeWorkoutId;
           const totalDuration = getTotalWorkoutDuration(w.exercises);
           const completionsCount = history.filter(h => h.workoutId === w.id && h.status === 'completed').length;
@@ -142,15 +156,13 @@ export const WorkoutsView: React.FC = () => {
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
-                    {!w.isDefault && (
-                      <button
-                        onClick={() => setDeleteWorkoutTarget(w)}
-                        className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
-                        title="Excluir treino"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => setDeleteWorkoutTarget(w)}
+                      className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all"
+                      title="Excluir treino"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
@@ -215,21 +227,9 @@ export const WorkoutsView: React.FC = () => {
           );
         })}
       </div>
+      )}
 
-      {/* Reset Default TAF Action Banner */}
-      <div className="p-4 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-between gap-4">
-        <div>
-          <h4 className="text-xs font-bold text-white">Série Oficial TAF PMCE</h4>
-          <p className="text-[11px] text-zinc-400 mt-0.5">Deseja restaurar a série original de 15 exercícios oficiais?</p>
-        </div>
-        <button
-          onClick={() => setShowResetModal(true)}
-          className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold text-xs flex items-center gap-1 border border-zinc-700 shrink-0"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Restaurar TAF</span>
-        </button>
-      </div>
+
 
       {/* Create New Workout Modal */}
       {showCreateModal && (
@@ -357,19 +357,7 @@ export const WorkoutsView: React.FC = () => {
         onCancel={() => setDeleteWorkoutTarget(null)}
       />
 
-      {/* Reset Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showResetModal}
-        title="Restaurar Série Padrão TAF PMCE?"
-        description="Esta ação irá redefinir a lista de exercícios para os 15 blocos oficiais originais do TAF PMCE."
-        confirmLabel="Sim, Restaurar Padrão"
-        variant="amber"
-        onConfirm={() => {
-          resetDefaultWorkout();
-          setShowResetModal(false);
-        }}
-        onCancel={() => setShowResetModal(false)}
-      />
+
     </div>
   );
 };
