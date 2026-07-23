@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RotateCcw, Save, ArrowLeft, Trash2, Edit2, Play, Coffee } from 'lucide-react';
-import { useWorkoutStore } from '../store/workoutStore';
+import { Plus, RotateCcw, Save, ArrowLeft, Trash2, Edit2, Play, Coffee, Target } from 'lucide-react';
+import { useWorkoutStore } from '../store/workout-store';
 import type { Exercise } from '../types';
 import { formatSecondsToMMSS, getExerciseStartTime, getTotalWorkoutDuration } from '../utils/formatters';
-import { ConfirmModal } from '../components/ConfirmModal';
+import { ConfirmModal } from '../components/confirm-modal';
 
 export const EditView: React.FC = () => {
   const navigate = useNavigate();
@@ -24,6 +24,7 @@ export const EditView: React.FC = () => {
 
   const [formName, setFormName] = useState<string>('');
   const [formNotes, setFormNotes] = useState<string>('');
+  const [formTargetReps, setFormTargetReps] = useState<number | ''>(10);
   const [workMinutes, setWorkMinutes] = useState<number>(1);
   const [workSeconds, setWorkSeconds] = useState<number>(0);
   const [restMinutes, setRestMinutes] = useState<number>(1);
@@ -34,6 +35,7 @@ export const EditView: React.FC = () => {
     setEditingExercise(null);
     setFormName('');
     setFormNotes('');
+    setFormTargetReps(10);
     setWorkMinutes(1);
     setWorkSeconds(0);
     setRestMinutes(1);
@@ -46,6 +48,7 @@ export const EditView: React.FC = () => {
     setEditingExercise(exercise);
     setFormName(exercise.name);
     setFormNotes(exercise.focusNotes || '');
+    setFormTargetReps(exercise.targetReps ?? 10);
 
     const workTotal = exercise.workDurationSeconds || 60;
     setWorkMinutes(Math.floor(workTotal / 60));
@@ -70,11 +73,13 @@ export const EditView: React.FC = () => {
 
     const totalWorkSecs = Math.max(5, workMinutes * 60 + workSeconds);
     const totalRestSecs = Math.max(0, restMinutes * 60 + restSeconds);
+    const repsVal = typeof formTargetReps === 'number' ? Math.max(0, formTargetReps) : 0;
 
     if (isAdding) {
       addExerciseToWorkout(workout.id, {
         name: formName.trim(),
         focusNotes: formNotes.trim(),
+        targetReps: repsVal,
         workDurationSeconds: totalWorkSecs,
         restDurationSeconds: totalRestSecs,
         category: formCategory
@@ -84,6 +89,7 @@ export const EditView: React.FC = () => {
         ...editingExercise,
         name: formName.trim(),
         focusNotes: formNotes.trim(),
+        targetReps: repsVal,
         workDurationSeconds: totalWorkSecs,
         restDurationSeconds: totalRestSecs,
         durationSeconds: totalWorkSecs + totalRestSecs,
@@ -160,7 +166,13 @@ export const EditView: React.FC = () => {
                 {exercise.focusNotes && (
                   <p className="text-xs text-zinc-400 mt-0.5">{exercise.focusNotes}</p>
                 )}
-                <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  {exercise.targetReps !== undefined && exercise.targetReps > 0 && (
+                    <span className="text-[11px] font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20 flex items-center gap-1">
+                      <Target className="w-3 h-3 text-purple-400" />
+                      Repetições: {exercise.targetReps}
+                    </span>
+                  )}
                   <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 flex items-center gap-1">
                     <Play className="w-3 h-3 fill-current" />
                     Execução: {formatSecondsToMMSS(exercise.workDurationSeconds || 60)}
@@ -245,6 +257,25 @@ export const EditView: React.FC = () => {
                   placeholder="Ex: Foco TAF - Manter tronco firme"
                   className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
                 />
+              </div>
+
+              {/* Quantidade de Repetições */}
+              <div className="p-3 rounded-2xl bg-purple-500/5 border border-purple-500/20 space-y-2">
+                <label className="block text-purple-400 font-bold flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Quantidade de Repetições (Reps)</span>
+                </label>
+                <div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    value={formTargetReps}
+                    onChange={e => setFormTargetReps(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
+                    placeholder="Ex: 30"
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
               </div>
 
               {/* Tempo de Execução */}

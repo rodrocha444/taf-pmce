@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Edit3, RotateCcw, Clock, ShieldCheck, Flame, Info, CheckCircle2 } from 'lucide-react';
-import { useWorkoutStore } from '../store/workoutStore';
-import { ExerciseCard } from '../components/ExerciseCard';
+import { useWorkoutStore } from '../store/workout-store';
+import { ExerciseCard } from '../components/exercise-card';
 import { getExerciseStartTime, formatTimeHoursMins, getTotalWorkoutDuration } from '../utils/formatters';
-import { ConfirmModal } from '../components/ConfirmModal';
+import { ConfirmModal } from '../components/confirm-modal';
 
 export const HomeView: React.FC = () => {
   const navigate = useNavigate();

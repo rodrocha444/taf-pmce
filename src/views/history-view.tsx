@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { History, Award, CheckCircle2, XCircle, ArrowLeft, Calendar, Clock, Trash2 } from 'lucide-react';
-import { useWorkoutStore } from '../store/workoutStore';
+import { useWorkoutStore } from '../store/workout-store';
 import { formatDate, formatTimeHoursMins } from '../utils/formatters';
-import { ConfirmModal } from '../components/ConfirmModal';
+import { ConfirmModal } from '../components/confirm-modal';
 
 export const HistoryView: React.FC = () => {
   const navigate = useNavigate();

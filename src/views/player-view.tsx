@@ -18,12 +18,14 @@ import {
   Flame,
   FastForward,
   CheckCircle2,
-  Clock
+  Clock,
+  Edit2,
+  Target
 } from 'lucide-react';
-import { useWorkoutStore } from '../store/workoutStore';
+import { useWorkoutStore } from '../store/workout-store';
 import { formatSecondsToMMSS, getExerciseStartTime, getTotalWorkoutDuration } from '../utils/formatters';
-import { ProgressRing } from '../components/ProgressRing';
-import { wakeLockManager } from '../utils/wakeLock';
+import { ProgressRing } from '../components/progress-ring';
+import { wakeLockManager } from '../utils/wake-lock';
 
 type ConfirmModalType = 'complete' | 'skip' | 'exit' | null;
 
@@ -41,12 +43,21 @@ export const PlayerView: React.FC = () => {
   const finishWorkout = useWorkoutStore(state => state.finishWorkout);
   const tickSession = useWorkoutStore(state => state.tickSession);
   const updateSettings = useWorkoutStore(state => state.updateSettings);
+  const updateActiveExercise = useWorkoutStore(state => state.updateActiveExercise);
 
   const [wakeLockActive, setWakeLockActive] = useState<boolean>(false);
   const [confirmModal, setConfirmModal] = useState<ConfirmModalType>(null);
   const [modalCountdown, setModalCountdown] = useState<number>(5);
   const [wasRunningBeforeModal, setWasRunningBeforeModal] = useState<boolean>(false);
   const [nowTimestamp, setNowTimestamp] = useState<number>(Date.now());
+
+  // Edit active exercise state in player
+  const [isEditingExercise, setIsEditingExercise] = useState<boolean>(false);
+  const [editTargetReps, setEditTargetReps] = useState<number | ''>(10);
+  const [editWorkMinutes, setEditWorkMinutes] = useState<number>(1);
+  const [editWorkSeconds, setEditWorkSeconds] = useState<number>(0);
+  const [editRestMinutes, setEditRestMinutes] = useState<number>(1);
+  const [editRestSeconds, setEditRestSeconds] = useState<number>(0);
 
   // Continuous 1-second wall-clock timer tick (NEVER PAUSES, persists even if app closes)
   useEffect(() => {
@@ -184,6 +195,53 @@ export const PlayerView: React.FC = () => {
   const closeModal = () => {
     setConfirmModal(null);
     if (wasRunningBeforeModal && activeSession?.isPaused) {
+      resumeWorkout();
+    }
+  };
+
+  const openEditActiveExerciseModal = () => {
+    if (!currentExercise) return;
+    if (activeSession && !activeSession.isPaused) {
+      setWasRunningBeforeModal(true);
+      pauseWorkout();
+    } else {
+      setWasRunningBeforeModal(false);
+    }
+    setEditTargetReps(currentExercise.targetReps ?? 10);
+    const workTotal = currentExercise.workDurationSeconds || 60;
+    setEditWorkMinutes(Math.floor(workTotal / 60));
+    setEditWorkSeconds(workTotal % 60);
+
+    const restTotal = currentExercise.restDurationSeconds || 60;
+    setEditRestMinutes(Math.floor(restTotal / 60));
+    setEditRestSeconds(restTotal % 60);
+
+    setIsEditingExercise(true);
+  };
+
+  const closeEditActiveExerciseModal = () => {
+    setIsEditingExercise(false);
+    if (wasRunningBeforeModal && activeSession?.isPaused) {
+      resumeWorkout();
+    }
+  };
+
+  const handleSaveActiveExercise = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentExercise) return;
+
+    const totalWorkSecs = Math.max(5, editWorkMinutes * 60 + editWorkSeconds);
+    const totalRestSecs = Math.max(0, editRestMinutes * 60 + editRestSeconds);
+    const repsVal = typeof editTargetReps === 'number' ? Math.max(0, editTargetReps) : 0;
+
+    updateActiveExercise(currentExercise.id, {
+      targetReps: repsVal,
+      workDurationSeconds: totalWorkSecs,
+      restDurationSeconds: totalRestSecs
+    });
+
+    setIsEditingExercise(false);
+    if (wasRunningBeforeModal) {
       resumeWorkout();
     }
   };
@@ -338,6 +396,25 @@ export const PlayerView: React.FC = () => {
                   ⚡ {currentExercise.focusNotes}
                 </p>
               )}
+
+              {/* Reps Meta Badge & Edit Exercise Button (Available in Work & Rest) */}
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                {currentExercise?.targetReps !== undefined && currentExercise.targetReps > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 font-bold text-xs">
+                    <Target className="w-4 h-4 text-purple-400" />
+                    <span>Meta: {currentExercise.targetReps} reps</span>
+                  </span>
+                )}
+
+                <button
+                  onClick={openEditActiveExerciseModal}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold hover:bg-amber-500/20 active:scale-95 transition-all cursor-pointer shadow-sm"
+                  title="Alterar repetições ou tempo deste exercício em tempo real"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Editar Exercício</span>
+                </button>
+              </div>
             </div>
 
             {/* Giant Timer Circle */}
@@ -630,6 +707,121 @@ export const PlayerView: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Quick Edit Active Exercise Modal */}
+      {isEditingExercise && currentExercise && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form
+            onSubmit={handleSaveActiveExercise}
+            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2 font-['Outfit']">
+                <Edit2 className="w-5 h-5 text-amber-400" />
+                <span>Editar {currentExercise.name}</span>
+              </h3>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              {/* Quantidade de Repetições */}
+              <div className="p-3 rounded-2xl bg-purple-500/5 border border-purple-500/20 space-y-2">
+                <label className="block text-purple-400 font-bold flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Quantidade de Repetições (Reps)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="999"
+                  value={editTargetReps}
+                  onChange={e => setEditTargetReps(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-purple-500 font-bold text-sm"
+                />
+              </div>
+
+              {/* Tempo de Execução */}
+              <div className="p-3 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-2">
+                <label className="block text-amber-400 font-bold flex items-center gap-1.5">
+                  <Flame className="w-3.5 h-3.5 fill-current" />
+                  <span>Tempo de Execução (Work)</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-zinc-400 font-medium mb-1">Minutos</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="60"
+                      value={editWorkMinutes}
+                      onChange={e => setEditWorkMinutes(parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-zinc-400 font-medium mb-1">Segundos</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={editWorkSeconds}
+                      onChange={e => setEditWorkSeconds(parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tempo de Descanso */}
+              <div className="p-3 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 space-y-2">
+                <label className="block text-cyan-400 font-bold flex items-center gap-1.5">
+                  <Coffee className="w-3.5 h-3.5" />
+                  <span>Tempo de Descanso (Rest)</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-zinc-400 font-medium mb-1">Minutos</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="60"
+                      value={editRestMinutes}
+                      onChange={e => setEditRestMinutes(parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-zinc-400 font-medium mb-1">Segundos</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={editRestSeconds}
+                      onChange={e => setEditRestSeconds(parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={closeEditActiveExerciseModal}
+                className="w-full py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700 active:scale-95"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs hover:bg-amber-400 active:scale-95 shadow-md shadow-amber-500/20 font-bold"
+              >
+                Salvar Alterações
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

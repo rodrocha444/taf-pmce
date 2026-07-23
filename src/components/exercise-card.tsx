@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Exercise } from '../types';
 import { formatSecondsToMMSS } from '../utils/formatters';
-import { Flame, ShieldAlert, Activity, BicepsFlexed, Play, Coffee } from 'lucide-react';
+import { Flame, ShieldAlert, Activity, BicepsFlexed, Play, Coffee, Target } from 'lucide-react';
 
 interface ExerciseCardProps {
   exercise: Exercise;
@@ -24,6 +24,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   index,
   startTimeFormatted,
   isCurrent = false,
+  status,
   onSelect,
   showActions = false,
   onEdit,
@@ -95,8 +96,15 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
           </div>
         </div>
 
-        {/* Work vs Rest Split Badges */}
-        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+        {/* Reps, Work vs Rest Split Badges */}
+        <div className="flex flex-wrap items-center gap-2 self-end sm:self-center shrink-0">
+          {exercise.targetReps !== undefined && exercise.targetReps > 0 && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs font-mono font-bold text-purple-400" title="Quantidade de Repetições">
+              <Target className="w-3 h-3 text-purple-400" />
+              <span>{exercise.targetReps} reps</span>
+            </div>
+          )}
+
           {/* Work Duration Badge */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-mono font-bold text-amber-400" title="Tempo de Execução">
             <Play className="w-3 h-3 fill-current text-amber-400" />

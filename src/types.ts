@@ -2,6 +2,7 @@ export interface Exercise {
   id: string;
   name: string;
   focusNotes?: string;
+  targetReps?: number;         // meta de repetições do exercício
   workDurationSeconds: number; // default 60 (1 min execution)
   restDurationSeconds: number; // default 60 (1 min rest)
   durationSeconds: number;     // total = work + rest (120s / 2 mins)

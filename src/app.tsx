@@ -1,12 +1,12 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { Header } from './components/Header';
-import { BottomNav } from './components/BottomNav';
-import { HomeView } from './views/HomeView';
-import { PlayerView } from './views/PlayerView';
-import { EditView } from './views/EditView';
-import { HistoryView } from './views/HistoryView';
-import { SettingsView } from './views/SettingsView';
+import { Header } from './components/header';
+import { BottomNav } from './components/bottom-nav';
+import { HomeView } from './views/home-view';
+import { PlayerView } from './views/player-view';
+import { EditView } from './views/edit-view';
+import { HistoryView } from './views/history-view';
+import { SettingsView } from './views/settings-view';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();

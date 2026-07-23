@@ -2,10 +2,10 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import confetti from 'canvas-confetti';
 import type { Workout, ActiveSession, WorkoutSessionLog, UserSettings, Exercise } from '../types';
-import { DEFAULT_TAF_WORKOUT } from '../data/defaultWorkout';
+import { DEFAULT_TAF_WORKOUT } from '../data/default-workout';
 import { audioEngine } from '../utils/audio';
 import { speechEngine } from '../utils/speech';
-import { wakeLockManager } from '../utils/wakeLock';
+import { wakeLockManager } from '../utils/wake-lock';
 
 interface WorkoutStore {
   workouts: Workout[];
@@ -33,6 +33,7 @@ interface WorkoutStore {
   updateSettings: (settings: Partial<UserSettings>) => void;
   addExerciseToWorkout: (workoutId: string, exercise: Omit<Exercise, 'id' | 'durationSeconds'>) => void;
   updateExerciseInWorkout: (workoutId: string, exercise: Exercise) => void;
+  updateActiveExercise: (exerciseId: string, updates: { targetReps?: number; workDurationSeconds?: number; restDurationSeconds?: number }) => void;
   deleteExerciseFromWorkout: (workoutId: string, exerciseId: string) => void;
   reorderExercisesInWorkout: (workoutId: string, startIndex: number, endIndex: number) => void;
 }
@@ -272,6 +273,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (!session) return;
         const workout = get().getActiveWorkout();
         const settings = get().settings;
+        const shouldPause = !settings.autoAdvanceBlocks;
 
         const currentExIndex = session.currentExerciseIndex;
         const newStatuses = {
@@ -289,7 +291,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
               exerciseStatuses: { ...newStatuses, [currentExIndex]: 'completed' },
               currentPhase: 'rest',
               phaseTimeRemaining: currentEx.restDurationSeconds || 60,
-              isPreparing: false
+              isPreparing: false,
+              isPaused: shouldPause
             }
           });
         } else {
@@ -307,7 +310,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 currentPhase: 'work',
                 phaseTimeRemaining: nextEx.workDurationSeconds || 60,
                 exerciseTimeRemaining: nextEx.durationSeconds,
-                isPreparing: false
+                isPreparing: false,
+                isPaused: shouldPause
               }
             });
           } else {
@@ -325,6 +329,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (!session) return;
         const workout = get().getActiveWorkout();
         const settings = get().settings;
+        const shouldPause = !settings.autoAdvanceBlocks;
 
         const currentExIndex = session.currentExerciseIndex;
 
@@ -341,7 +346,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
               exerciseStatuses: newStatuses,
               currentPhase: 'rest',
               phaseTimeRemaining: currentEx.restDurationSeconds || 60,
-              isPreparing: false
+              isPreparing: false,
+              isPaused: shouldPause
             }
           });
         } else {
@@ -362,7 +368,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 currentPhase: 'work',
                 phaseTimeRemaining: nextEx.workDurationSeconds || 60,
                 exerciseTimeRemaining: nextEx.durationSeconds,
-                isPreparing: false
+                isPreparing: false,
+                isPaused: shouldPause
               }
             });
           } else {
@@ -547,6 +554,53 @@ export const useWorkoutStore = create<WorkoutStore>()(
             return w;
           })
         }));
+      },
+
+      updateActiveExercise: (exerciseId, updates) => {
+        set(state => {
+          const activeWorkout = state.workouts.find(w => w.id === state.activeWorkoutId);
+          if (!activeWorkout) return state;
+
+          const updatedExercises = activeWorkout.exercises.map(ex => {
+            if (ex.id !== exerciseId) return ex;
+            const workSecs = updates.workDurationSeconds !== undefined ? Math.max(5, updates.workDurationSeconds) : (ex.workDurationSeconds || 60);
+            const restSecs = updates.restDurationSeconds !== undefined ? Math.max(0, updates.restDurationSeconds) : (ex.restDurationSeconds || 60);
+            return {
+              ...ex,
+              targetReps: updates.targetReps !== undefined ? updates.targetReps : ex.targetReps,
+              workDurationSeconds: workSecs,
+              restDurationSeconds: restSecs,
+              durationSeconds: workSecs + restSecs
+            };
+          });
+
+          const updatedWorkouts = state.workouts.map(w =>
+            w.id === activeWorkout.id ? { ...w, exercises: updatedExercises, updatedAt: new Date().toISOString() } : w
+          );
+
+          let updatedSession = state.activeSession;
+          if (updatedSession && updatedSession.workoutId === activeWorkout.id) {
+            const currentEx = updatedExercises[updatedSession.currentExerciseIndex];
+            if (currentEx && currentEx.id === exerciseId) {
+              const isWork = updatedSession.currentPhase === 'work';
+              const maxPhaseTime = isWork ? (currentEx.workDurationSeconds || 60) : (currentEx.restDurationSeconds || 60);
+              const phaseRemaining = Math.min(updatedSession.phaseTimeRemaining, maxPhaseTime);
+              const exerciseRemaining = isWork ? (phaseRemaining + (currentEx.restDurationSeconds || 60)) : phaseRemaining;
+
+              updatedSession = {
+                ...updatedSession,
+                phaseTimeRemaining: phaseRemaining,
+                exerciseTimeRemaining: exerciseRemaining,
+                lastUpdatedTimestamp: Date.now()
+              };
+            }
+          }
+
+          return {
+            workouts: updatedWorkouts,
+            activeSession: updatedSession
+          };
+        });
       },
 
       deleteExerciseFromWorkout: (workoutId, exerciseId) => {
