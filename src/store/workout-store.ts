@@ -1,11 +1,48 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import confetti from 'canvas-confetti';
-import type { Workout, ActiveSession, WorkoutSessionLog, UserSettings, Exercise, ExerciseExecutionType } from '../types';
+import type { Workout, ActiveSession, WorkoutSessionLog, UserSettings, Exercise, ExerciseExecutionType, RunningWorkout, RunningLog } from '../types';
 import { DEFAULT_TAF_WORKOUT } from '../data/default-workout';
 import { audioEngine } from '../utils/audio';
 import { speechEngine } from '../utils/speech';
 import { wakeLockManager } from '../utils/wake-lock';
+import { calculatePaceSecPerKm, calculateSpeedKmH } from '../utils/formatters';
+
+export const DEFAULT_RUNNING_WORKOUTS: RunningWorkout[] = [
+  {
+    id: 'run-taf-pmce',
+    title: 'Corrida TAF PMCE (2.400m)',
+    targetMode: 'distance',
+    targetDistanceKm: 2.4,
+    targetDurationSeconds: 720,
+    targetPaceSecPerKm: 300,
+    notes: 'Meta Oficial TAF PMCE: 2.400 metros em 12 minutos (Pace 5:00 min/km)',
+    isDefault: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'run-5k',
+    title: 'Rodagem 5km',
+    targetMode: 'distance',
+    targetDistanceKm: 5.0,
+    targetDurationSeconds: 1650,
+    targetPaceSecPerKm: 330,
+    notes: 'Treino de resistência aeróbica contínua',
+    isDefault: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'run-sprint-400m',
+    title: 'Tiro de Velocidade (400m)',
+    targetMode: 'distance',
+    targetDistanceKm: 0.4,
+    targetDurationSeconds: 90,
+    targetPaceSecPerKm: 225,
+    notes: 'Treino de velocidade anaeróbica',
+    isDefault: true,
+    createdAt: new Date().toISOString()
+  }
+];
 
 interface WorkoutStore {
   workouts: Workout[];
@@ -13,6 +50,8 @@ interface WorkoutStore {
   activeSession: ActiveSession | null;
   history: WorkoutSessionLog[];
   settings: UserSettings;
+  runningWorkouts: RunningWorkout[];
+  runningHistory: RunningLog[];
 
   // Actions
   getActiveWorkout: () => Workout;
@@ -39,6 +78,13 @@ interface WorkoutStore {
   updateActiveExercise: (exerciseId: string, updates: { executionType?: ExerciseExecutionType; targetReps?: number; workDurationSeconds?: number; restDurationSeconds?: number }) => void;
   deleteExerciseFromWorkout: (workoutId: string, exerciseId: string) => void;
   reorderExercisesInWorkout: (workoutId: string, startIndex: number, endIndex: number) => void;
+
+  // Running actions
+  addRunningWorkout: (workout: Omit<RunningWorkout, 'id' | 'createdAt'>) => RunningWorkout;
+  deleteRunningWorkout: (id: string) => void;
+  addRunningLog: (log: Omit<RunningLog, 'id' | 'paceSecPerKm' | 'speedKmH'>) => void;
+  deleteRunningLog: (id: string) => void;
+  clearRunningHistory: () => void;
 }
 
 export const useWorkoutStore = create<WorkoutStore>()(
@@ -56,6 +102,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
         autoAdvanceBlocks: true,
         volume: 1
       },
+      runningWorkouts: DEFAULT_RUNNING_WORKOUTS,
+      runningHistory: [],
 
       getActiveWorkout: () => {
         const { workouts, activeWorkoutId } = get();
@@ -724,6 +772,48 @@ export const useWorkoutStore = create<WorkoutStore>()(
             return w;
           })
         }));
+      },
+
+      addRunningWorkout: (workoutData) => {
+        const newRun: RunningWorkout = {
+          ...workoutData,
+          id: `run-${Date.now()}`,
+          createdAt: new Date().toISOString()
+        };
+        set(state => ({
+          runningWorkouts: [newRun, ...(state.runningWorkouts || [])]
+        }));
+        return newRun;
+      },
+
+      deleteRunningWorkout: (id) => {
+        set(state => ({
+          runningWorkouts: (state.runningWorkouts || []).filter(w => w.id !== id || w.isDefault)
+        }));
+      },
+
+      addRunningLog: (logData) => {
+        const paceSecPerKm = calculatePaceSecPerKm(logData.distanceKm, logData.durationSeconds);
+        const speedKmH = calculateSpeedKmH(logData.distanceKm, logData.durationSeconds);
+        const newLog: RunningLog = {
+          ...logData,
+          id: `run-log-${Date.now()}`,
+          paceSecPerKm,
+          speedKmH
+        };
+        set(state => ({
+          runningHistory: [newLog, ...(state.runningHistory || [])]
+        }));
+      },
+
+      deleteRunningLog: (id) => {
+        set(state => ({
+          runningHistory: (state.runningHistory || []).filter(l => l.id !== id)
+        }));
+      },
+
+      clearRunningHistory: () => {
+        set({ runningHistory: [] });
       }
     }),
     {
@@ -734,7 +824,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
         activeWorkoutId: state.activeWorkoutId,
         history: state.history,
         settings: state.settings,
-        activeSession: state.activeSession
+        activeSession: state.activeSession,
+        runningWorkouts: state.runningWorkouts,
+        runningHistory: state.runningHistory
       })
     }
   )

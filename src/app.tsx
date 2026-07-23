@@ -7,6 +7,7 @@ import { EditView } from './views/edit-view';
 import { WorkoutsView } from './views/workouts-view';
 import { HistoryView } from './views/history-view';
 import { SettingsView } from './views/settings-view';
+import { RunningView } from './views/running-view';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
@@ -26,6 +27,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<HomeView />} />
           <Route path="/workouts" element={<WorkoutsView />} />
+          <Route path="/running" element={<RunningView />} />
           <Route path="/player" element={<PlayerView />} />
           <Route path="/edit" element={<EditView />} />
           <Route path="/history" element={<HistoryView />} />

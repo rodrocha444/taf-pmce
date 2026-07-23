@@ -61,3 +61,28 @@ export interface ActiveSession {
   lastUpdatedTimestamp: number | null;
   exerciseStatuses: Record<number, 'completed' | 'skipped'>;
 }
+
+export type RunningTargetMode = 'distance' | 'time' | 'pace';
+
+export interface RunningWorkout {
+  id: string;
+  title: string;
+  targetMode: RunningTargetMode; // 'distance', 'time', 'pace'
+  targetDistanceKm?: number;      // e.g. 2.4 (2.4 km)
+  targetDurationSeconds?: number; // e.g. 720 (12 mins)
+  targetPaceSecPerKm?: number;    // e.g. 300 (5:00 min/km)
+  notes?: string;
+  isDefault?: boolean;
+  createdAt: string;
+}
+
+export interface RunningLog {
+  id: string;
+  workoutTitle: string;
+  date: string;
+  distanceKm: number;          // e.g. 2.4 km
+  durationSeconds: number;     // e.g. 690s (11m 30s)
+  paceSecPerKm: number;        // calculated min/km pace in seconds
+  speedKmH: number;            // calculated km/h speed
+  notes?: string;
+}

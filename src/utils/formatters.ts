@@ -46,3 +46,24 @@ export function formatDate(isoString: string): string {
     return isoString;
   }
 }
+
+// Calcula o Pace (min/km) a partir de distancia (km) e tempo (segundos)
+export function calculatePaceSecPerKm(distanceKm: number, durationSeconds: number): number {
+  if (distanceKm <= 0 || durationSeconds <= 0) return 0;
+  return Math.round(durationSeconds / distanceKm);
+}
+
+// Formata pace em formato string ex: "4:58 min/km"
+export function formatPace(paceSecPerKm: number): string {
+  if (!paceSecPerKm || paceSecPerKm <= 0) return '--:-- min/km';
+  const mins = Math.floor(paceSecPerKm / 60);
+  const secs = Math.round(paceSecPerKm % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')} min/km`;
+}
+
+// Calcula velocidade em km/h a partir de distancia (km) e tempo (segundos)
+export function calculateSpeedKmH(distanceKm: number, durationSeconds: number): number {
+  if (distanceKm <= 0 || durationSeconds <= 0) return 0;
+  const hours = durationSeconds / 3600;
+  return Number((distanceKm / hours).toFixed(2));
+}
