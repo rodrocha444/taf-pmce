@@ -7,6 +7,7 @@ import { audioEngine } from '../utils/audio';
 import { speechEngine } from '../utils/speech';
 import { wakeLockManager } from '../utils/wake-lock';
 import { calculatePaceSecPerKm, calculateSpeedKmH } from '../utils/formatters';
+import { indexedDBStorage } from '../services/db-storage';
 
 export const DEFAULT_RUNNING_WORKOUTS: RunningWorkout[] = [
   {
@@ -833,7 +834,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
     }),
     {
       name: 'taf-pmce-workout-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => indexedDBStorage),
       partialize: (state) => ({
         workouts: state.workouts,
         activeWorkoutId: state.activeWorkoutId,

@@ -194,6 +194,28 @@ export const SettingsView: React.FC = () => {
           </select>
         </div>
 
+        {/* IndexedDB Database Engine Info */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/30 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs border border-amber-500/30">
+                SQL
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <span>Banco de Dados Local (IndexedDB / SQLite Engine)</span>
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  Armazenamento de alta performance estruturado em tabelas locais ilimitadas.
+                </p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] font-bold font-mono">
+              ATIVO
+            </span>
+          </div>
+        </div>
+
         {/* Offline & PWA Info */}
         <div className="bg-gradient-to-r from-emerald-500/10 via-zinc-900 to-zinc-900 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
