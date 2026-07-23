@@ -31,7 +31,6 @@ export const Header: React.FC = () => {
 
         {/* Navigation Actions */}
         <nav className="flex items-center gap-1 sm:gap-2">
-
           <Link
             to="/edit"
             className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
@@ -39,7 +38,7 @@ export const Header: React.FC = () => {
                 ? 'bg-zinc-800 text-amber-400 border border-zinc-700'
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
             }`}
-            title="Editar Treino"
+            title="Editar Exercícios"
           >
             <Edit3 className="w-4 h-4" />
             <span className="hidden md:inline">Editar</span>

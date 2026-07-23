@@ -98,18 +98,17 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
 
         {/* Reps, Work vs Rest Split Badges */}
         <div className="flex flex-wrap items-center gap-2 self-end sm:self-center shrink-0">
-          {exercise.targetReps !== undefined && exercise.targetReps > 0 && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs font-mono font-bold text-purple-400" title="Quantidade de Repetições">
-              <Target className="w-3 h-3 text-purple-400" />
+          {exercise.executionType === 'reps' || (exercise.targetReps !== undefined && exercise.targetReps > 0) ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-purple-500/15 border border-purple-500/30 text-xs font-mono font-bold text-purple-300" title="Modo: Por Repetição">
+              <Target className="w-3.5 h-3.5 text-purple-400" />
               <span>{exercise.targetReps} reps</span>
             </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-xs font-mono font-bold text-amber-300" title="Modo: Por Tempo de Execução">
+              <Play className="w-3.5 h-3.5 fill-current text-amber-400" />
+              <span>{formatSecondsToMMSS(workSecs)}</span>
+            </div>
           )}
-
-          {/* Work Duration Badge */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-mono font-bold text-amber-400" title="Tempo de Execução">
-            <Play className="w-3 h-3 fill-current text-amber-400" />
-            <span>{formatSecondsToMMSS(workSecs)}</span>
-          </div>
 
           {/* Rest Duration Badge */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs font-mono font-bold text-cyan-400" title="Tempo de Descanso">

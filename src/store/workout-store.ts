@@ -16,6 +16,9 @@ interface WorkoutStore {
 
   // Actions
   getActiveWorkout: () => Workout;
+  setActiveWorkoutId: (id: string) => void;
+  createWorkout: (title: string, description?: string) => Workout;
+  updateWorkoutDetails: (id: string, title: string, description: string) => void;
   startWorkout: (workoutId?: string) => void;
   pauseWorkout: () => void;
   resumeWorkout: () => void;
@@ -59,6 +62,46 @@ export const useWorkoutStore = create<WorkoutStore>()(
         return workouts.find(w => w.id === activeWorkoutId) || workouts[0] || DEFAULT_TAF_WORKOUT;
       },
 
+      setActiveWorkoutId: (id: string) => {
+        const exists = get().workouts.some(w => w.id === id);
+        if (exists) {
+          set({ activeWorkoutId: id });
+        }
+      },
+
+      createWorkout: (title: string, description = '') => {
+        const newWorkout: Workout = {
+          id: `workout-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          title: title.trim() || 'Novo Treino',
+          description: description.trim(),
+          exercises: [],
+          isDefault: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        set(state => ({
+          workouts: [...state.workouts, newWorkout],
+          activeWorkoutId: newWorkout.id
+        }));
+        return newWorkout;
+      },
+
+      updateWorkoutDetails: (id: string, title: string, description: string) => {
+        set(state => ({
+          workouts: state.workouts.map(w => {
+            if (w.id === id) {
+              return {
+                ...w,
+                title: title.trim() || w.title,
+                description: description.trim(),
+                updatedAt: new Date().toISOString()
+              };
+            }
+            return w;
+          })
+        }));
+      },
+
       startWorkout: (workoutId) => {
         const targetId = workoutId || get().activeWorkoutId;
         const workout = get().workouts.find(w => w.id === targetId) || get().getActiveWorkout();
@@ -89,13 +132,21 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
         set({ activeWorkoutId: workout.id, activeSession: initialSession });
 
+        speechEngine.unlock();
+
         if (isPreparing) {
           if (settings.ttsVoiceEnabled) {
-            speechEngine.speak(`Treino iniciando em ${settings.prepCountdownSeconds} segundos. Prepare-se para ${firstExercise.name}`);
+            const isReps = firstExercise.executionType === 'reps' || (firstExercise.targetReps !== undefined && firstExercise.targetReps > 0);
+            const repsInfo = isReps && firstExercise.targetReps ? `. Meta: ${firstExercise.targetReps} repetições` : '';
+            speechEngine.speak(`Treino iniciando em ${settings.prepCountdownSeconds} segundos. Prepare-se para ${firstExercise.name}${repsInfo}`, true, settings.volume);
           }
         } else {
           if (settings.soundBeepEnabled) audioEngine.playGoBeep();
-          if (settings.ttsVoiceEnabled) speechEngine.speak(`Valendo! Execução: ${firstExercise.name}`);
+          if (settings.ttsVoiceEnabled) {
+            const isReps = firstExercise.executionType === 'reps' || (firstExercise.targetReps !== undefined && firstExercise.targetReps > 0);
+            const repsInfo = isReps && firstExercise.targetReps ? `. Meta: ${firstExercise.targetReps} repetições` : '';
+            speechEngine.speak(`Valendo! Execução: ${firstExercise.name}${repsInfo}`, true, settings.volume);
+          }
         }
       },
 
@@ -103,7 +154,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const session = get().activeSession;
         if (!session) return;
         set({ activeSession: { ...session, isPaused: true } });
-        if (get().settings.ttsVoiceEnabled) speechEngine.speak('Treino pausado');
+        const { settings } = get();
+        speechEngine.speak('Treino pausado', settings.ttsVoiceEnabled, settings.volume);
       },
 
       resumeWorkout: () => {
@@ -116,7 +168,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
             lastUpdatedTimestamp: Date.now()
           }
         });
-        if (get().settings.ttsVoiceEnabled) speechEngine.speak('Treino retomado');
+        const { settings } = get();
+        speechEngine.speak('Treino retomado', settings.ttsVoiceEnabled, settings.volume);
       },
 
       tickSession: () => {
@@ -126,7 +179,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const { settings, workouts } = get();
         const workout = workouts.find(w => w.id === session.workoutId) || DEFAULT_TAF_WORKOUT;
 
-        // Preparation phase countdown
+        // Preparation phase countdown (happens before EVERY exercise execution)
         if (session.isPreparing) {
           const nextPrepRemaining = session.prepTimeRemaining - 1;
 
@@ -142,9 +195,11 @@ export const useWorkoutStore = create<WorkoutStore>()(
               }
             });
           } else {
-            const firstEx = workout.exercises[0];
+            const currentEx = workout.exercises[session.currentExerciseIndex] || workout.exercises[0];
             if (settings.soundBeepEnabled) audioEngine.playGoBeep();
-            if (settings.ttsVoiceEnabled) speechEngine.speak(`Valendo! Execução: ${firstEx.name}`);
+            const isReps = currentEx.executionType === 'reps' || (currentEx.targetReps !== undefined && currentEx.targetReps > 0);
+            const repsInfo = isReps && currentEx.targetReps ? `. Meta: ${currentEx.targetReps} repetições` : '';
+            speechEngine.speak(`Valendo! Execução: ${currentEx.name}${repsInfo}`, settings.ttsVoiceEnabled, settings.volume);
 
             set({
               activeSession: {
@@ -152,8 +207,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 isPreparing: false,
                 prepTimeRemaining: 0,
                 currentPhase: 'work',
-                phaseTimeRemaining: firstEx.workDurationSeconds || 60,
-                exerciseTimeRemaining: firstEx.durationSeconds,
+                phaseTimeRemaining: currentEx.workDurationSeconds || 60,
+                exerciseTimeRemaining: currentEx.durationSeconds,
                 lastUpdatedTimestamp: Date.now()
               }
             });
@@ -164,6 +219,21 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const currentExercise = workout.exercises[session.currentExerciseIndex];
         if (!currentExercise) {
           get().finishWorkout('completed');
+          return;
+        }
+
+        const isRepsExercise = currentExercise.executionType === 'reps' || (currentExercise.targetReps !== undefined && currentExercise.targetReps > 0);
+
+        // Repetition-based exercises do NOT have an execution countdown timer!
+        // The athlete completes reps at their own pace and taps "Concluir" or "Pular".
+        if (session.currentPhase === 'work' && isRepsExercise) {
+          set({
+            activeSession: {
+              ...session,
+              totalTimeElapsed: session.totalTimeElapsed + 1,
+              lastUpdatedTimestamp: Date.now()
+            }
+          });
           return;
         }
 
@@ -181,7 +251,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
           const nextExIndex = session.currentExerciseIndex + 1;
           if (nextExIndex < workout.exercises.length) {
             const nextEx = workout.exercises[nextExIndex];
-            speechEngine.speak(`Em dez segundos, próxima execução: ${nextEx.name}`);
+            const isReps = nextEx.executionType === 'reps' || (nextEx.targetReps !== undefined && nextEx.targetReps > 0);
+            const repsInfo = isReps && nextEx.targetReps ? ` (${nextEx.targetReps} repetições)` : '';
+            speechEngine.speak(`Em dez segundos, próxima execução: ${nextEx.name}${repsInfo}`, settings.ttsVoiceEnabled, settings.volume);
           }
         }
 
@@ -210,9 +282,9 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
             if (settings.ttsVoiceEnabled) {
               if (nextExItem) {
-                speechEngine.speak(`Execução concluída! Respire. Próximo exercício: ${nextExItem.name}`);
+                speechEngine.speak(`Execução concluída! Respire. Próximo exercício: ${nextExItem.name}`, true, settings.volume);
               } else {
-                speechEngine.speak(`Descanso final! Treino quase concluído!`);
+                speechEngine.speak(`Descanso final! Treino quase concluído!`, true, settings.volume);
               }
             }
 
@@ -228,22 +300,25 @@ export const useWorkoutStore = create<WorkoutStore>()(
               }
             });
           } else {
-            // Rest finished naturally -> Switch from Rest -> Next Exercise Work Phase
+            // Rest finished naturally -> Enter Preparation (5s) before next exercise execution!
             const nextIndex = session.currentExerciseIndex + 1;
 
             if (nextIndex < workout.exercises.length) {
               const nextEx = workout.exercises[nextIndex];
               const shouldPause = !settings.autoAdvanceBlocks;
+              const prepSeconds = settings.prepCountdownSeconds || 5;
 
               if (settings.soundBeepEnabled) audioEngine.playGoBeep();
 
               if (shouldPause) {
                 if (settings.ttsVoiceEnabled) {
-                  speechEngine.speak(`Bloco concluído! Pausado. Toque em Continuar quando estiver pronto para: ${nextEx.name}`);
+                  speechEngine.speak(`Bloco concluído! Pausado. Toque em Continuar quando estiver pronto para: ${nextEx.name}`, true, settings.volume);
                 }
               } else {
                 if (settings.ttsVoiceEnabled) {
-                  speechEngine.speak(`Valendo! Execução: ${nextEx.name}`);
+                  const isReps = nextEx.executionType === 'reps' || (nextEx.targetReps !== undefined && nextEx.targetReps > 0);
+                  const repsInfo = isReps && nextEx.targetReps ? `. Meta: ${nextEx.targetReps} repetições` : '';
+                  speechEngine.speak(`Prepare-se para: ${nextEx.name}${repsInfo}`, true, settings.volume);
                 }
               }
 
@@ -252,6 +327,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
                   ...session,
                   currentExerciseIndex: nextIndex,
                   currentPhase: 'work',
+                  isPreparing: true,
+                  prepTimeRemaining: prepSeconds,
                   phaseTimeRemaining: nextEx.workDurationSeconds || 60,
                   exerciseTimeRemaining: nextEx.durationSeconds,
                   totalTimeElapsed: nextTotalElapsed,
@@ -283,7 +360,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
         if (session.currentPhase === 'work') {
           const currentEx = workout.exercises[currentExIndex];
-          if (settings.ttsVoiceEnabled) speechEngine.speak('Execução concluída! Descanso.');
+          if (settings.ttsVoiceEnabled) speechEngine.speak('Execução concluída! Descanso.', true, settings.volume);
 
           set({
             activeSession: {
@@ -296,11 +373,16 @@ export const useWorkoutStore = create<WorkoutStore>()(
             }
           });
         } else {
-          // If in rest phase, skipping rest advances directly to next exercise work phase
+          // If in rest phase, skipping rest enters preparation (5s) for next exercise
           const nextIndex = currentExIndex + 1;
           if (nextIndex < workout.exercises.length) {
             const nextEx = workout.exercises[nextIndex];
-            if (settings.ttsVoiceEnabled) speechEngine.speak(`Descanso pulado. Valendo: ${nextEx.name}`);
+            const prepSeconds = settings.prepCountdownSeconds || 5;
+            if (settings.ttsVoiceEnabled) {
+              const isReps = nextEx.executionType === 'reps' || (nextEx.targetReps !== undefined && nextEx.targetReps > 0);
+              const repsInfo = isReps && nextEx.targetReps ? `. Meta: ${nextEx.targetReps} repetições` : '';
+              speechEngine.speak(`Descanso encerrado. Prepare-se para: ${nextEx.name}${repsInfo}`, true, settings.volume);
+            }
 
             set({
               activeSession: {
@@ -308,9 +390,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 exerciseStatuses: newStatuses,
                 currentExerciseIndex: nextIndex,
                 currentPhase: 'work',
+                isPreparing: true,
+                prepTimeRemaining: prepSeconds,
                 phaseTimeRemaining: nextEx.workDurationSeconds || 60,
                 exerciseTimeRemaining: nextEx.durationSeconds,
-                isPreparing: false,
                 isPaused: shouldPause
               }
             });
@@ -323,7 +406,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       // PULAR:
       // If during WORK phase: marks exercise as SKIPPED and enters rest phase.
-      // If during REST phase: ONLY skips the rest phase (preserves completed status of exercise execution)!
+      // If during REST phase: ONLY skips the rest phase and enters preparation (5s) for next exercise!
       skipExercise: () => {
         const session = get().activeSession;
         if (!session) return;
@@ -338,7 +421,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
           const currentEx = workout.exercises[currentExIndex];
           const newStatuses = { ...session.exerciseStatuses, [currentExIndex]: 'skipped' as const };
 
-          if (settings.ttsVoiceEnabled) speechEngine.speak('Execução pulada.');
+          if (settings.ttsVoiceEnabled) speechEngine.speak('Execução pulada.', true, settings.volume);
 
           set({
             activeSession: {
@@ -351,14 +434,19 @@ export const useWorkoutStore = create<WorkoutStore>()(
             }
           });
         } else {
-          // Tapping Pular during REST phase -> Only skip the rest! Preserve exercise status (defaults to completed)!
+          // Tapping Pular during REST phase -> Only skip the rest and enter 5s prep for next exercise!
           const currentStatus = session.exerciseStatuses[currentExIndex] || 'completed';
           const newStatuses = { ...session.exerciseStatuses, [currentExIndex]: currentStatus };
 
           const nextIndex = currentExIndex + 1;
           if (nextIndex < workout.exercises.length) {
             const nextEx = workout.exercises[nextIndex];
-            if (settings.ttsVoiceEnabled) speechEngine.speak(`Descanso pulado. Valendo: ${nextEx.name}`);
+            const prepSeconds = settings.prepCountdownSeconds || 5;
+            if (settings.ttsVoiceEnabled) {
+              const isReps = nextEx.executionType === 'reps' || (nextEx.targetReps !== undefined && nextEx.targetReps > 0);
+              const repsInfo = isReps && nextEx.targetReps ? `. Meta: ${nextEx.targetReps} repetições` : '';
+              speechEngine.speak(`Descanso pulado. Prepare-se para: ${nextEx.name}${repsInfo}`, true, settings.volume);
+            }
 
             set({
               activeSession: {
@@ -366,9 +454,10 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 exerciseStatuses: newStatuses,
                 currentExerciseIndex: nextIndex,
                 currentPhase: 'work',
+                isPreparing: true,
+                prepTimeRemaining: prepSeconds,
                 phaseTimeRemaining: nextEx.workDurationSeconds || 60,
                 exerciseTimeRemaining: nextEx.durationSeconds,
-                isPreparing: false,
                 isPaused: shouldPause
               }
             });
@@ -435,14 +524,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
           if (status === 'completed') {
             if (settings.soundBeepEnabled) audioEngine.playCompletionFanfare();
-            if (settings.ttsVoiceEnabled) speechEngine.speak('Parabéns! Treino TAF concluído com sucesso!');
+            if (settings.ttsVoiceEnabled) speechEngine.speak('Parabéns! Treino TAF concluído com sucesso!', true, settings.volume);
             try {
               confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
             } catch (e) {
               console.warn('Confetti failed:', e);
             }
           } else {
-            if (settings.ttsVoiceEnabled) speechEngine.speak('Treino encerrado.');
+            if (settings.ttsVoiceEnabled) speechEngine.speak('Treino encerrado.', true, settings.volume);
           }
 
           const realElapsed = session.startTimestamp

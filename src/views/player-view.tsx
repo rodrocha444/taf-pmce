@@ -53,6 +53,7 @@ export const PlayerView: React.FC = () => {
 
   // Edit active exercise state in player
   const [isEditingExercise, setIsEditingExercise] = useState<boolean>(false);
+  const [editExecutionType, setEditExecutionType] = useState<'reps' | 'time'>('reps');
   const [editTargetReps, setEditTargetReps] = useState<number | ''>(10);
   const [editWorkMinutes, setEditWorkMinutes] = useState<number>(1);
   const [editWorkSeconds, setEditWorkSeconds] = useState<number>(0);
@@ -67,13 +68,36 @@ export const PlayerView: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Request screen wake lock on mount
+  // Request & maintain screen wake lock during workout execution
   useEffect(() => {
-    wakeLockManager.request().then(active => setWakeLockActive(active));
+    wakeLockManager.setEnabled(settings.keepScreenOn);
+
+    if (!settings.keepScreenOn) {
+      wakeLockManager.release();
+      setWakeLockActive(false);
+      return;
+    }
+
+    const acquireLock = async () => {
+      const active = await wakeLockManager.request();
+      setWakeLockActive(active);
+    };
+
+    acquireLock();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && settings.keepScreenOn) {
+        acquireLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       wakeLockManager.release();
     };
-  }, []);
+  }, [settings.keepScreenOn]);
 
   // Main 1-second interval timer tick
   useEffect(() => {
@@ -151,6 +175,7 @@ export const PlayerView: React.FC = () => {
   const totalDuration = getTotalWorkoutDuration(workout.exercises);
 
   const isWorkPhase = activeSession.currentPhase === 'work';
+  const isRepsMode = currentExercise?.executionType === 'reps' || (currentExercise?.targetReps !== undefined && currentExercise.targetReps > 0);
   const currentPhaseMaxDuration = currentExercise
     ? (isWorkPhase ? (currentExercise.workDurationSeconds || 60) : (currentExercise.restDurationSeconds || 60))
     : 60;
@@ -207,6 +232,8 @@ export const PlayerView: React.FC = () => {
     } else {
       setWasRunningBeforeModal(false);
     }
+    const isReps = currentExercise.executionType === 'reps' || (currentExercise.targetReps !== undefined && currentExercise.targetReps > 0);
+    setEditExecutionType(isReps ? 'reps' : 'time');
     setEditTargetReps(currentExercise.targetReps ?? 10);
     const workTotal = currentExercise.workDurationSeconds || 60;
     setEditWorkMinutes(Math.floor(workTotal / 60));
@@ -232,9 +259,11 @@ export const PlayerView: React.FC = () => {
 
     const totalWorkSecs = Math.max(5, editWorkMinutes * 60 + editWorkSeconds);
     const totalRestSecs = Math.max(0, editRestMinutes * 60 + editRestSeconds);
-    const repsVal = typeof editTargetReps === 'number' ? Math.max(0, editTargetReps) : 0;
+    const isReps = editExecutionType === 'reps';
+    const repsVal = isReps && typeof editTargetReps === 'number' ? Math.max(1, editTargetReps) : undefined;
 
     updateActiveExercise(currentExercise.id, {
+      executionType: editExecutionType,
       targetReps: repsVal,
       workDurationSeconds: totalWorkSecs,
       restDurationSeconds: totalRestSecs
@@ -265,17 +294,17 @@ export const PlayerView: React.FC = () => {
   return (
     <div className="min-h-[100dvh] bg-zinc-950 text-white flex flex-col justify-between player-safe-container select-none touch-manipulation">
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between gap-3 max-w-xl mx-auto w-full pt-1">
+      <div className="flex items-center justify-between gap-3 max-w-xl mx-auto w-full pt-1 px-1">
         <button
           onClick={() => openModal('exit')}
-          className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all flex items-center gap-1 text-xs font-semibold"
+          className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all flex items-center gap-1 text-xs font-semibold"
         >
           <XCircle className="w-4 h-4 text-rose-400" />
           <span>Encerrar</span>
         </button>
 
         {/* Screen & Sound Status Indicators */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {wakeLockActive && (
             <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-bold">
               <Sun className="w-3 h-3" />
@@ -285,7 +314,7 @@ export const PlayerView: React.FC = () => {
 
           <button
             onClick={() => updateSettings({ autoAdvanceBlocks: !settings.autoAdvanceBlocks })}
-            className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${settings.autoAdvanceBlocks
+            className={`p-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${settings.autoAdvanceBlocks
                 ? 'bg-zinc-900 text-amber-400 border-amber-500/30'
                 : 'bg-zinc-900/50 text-zinc-500 border-zinc-800'
               }`}
@@ -297,7 +326,7 @@ export const PlayerView: React.FC = () => {
 
           <button
             onClick={() => updateSettings({ soundBeepEnabled: !settings.soundBeepEnabled })}
-            className={`p-2 rounded-xl border text-xs font-medium transition-all ${settings.soundBeepEnabled
+            className={`p-1.5 rounded-xl border text-xs font-medium transition-all ${settings.soundBeepEnabled
                 ? 'bg-zinc-900 text-amber-400 border-amber-500/30'
                 : 'bg-zinc-900/50 text-zinc-500 border-zinc-800'
               }`}
@@ -308,7 +337,7 @@ export const PlayerView: React.FC = () => {
 
           <button
             onClick={() => updateSettings({ ttsVoiceEnabled: !settings.ttsVoiceEnabled })}
-            className={`p-2 rounded-xl border text-xs font-medium transition-all ${settings.ttsVoiceEnabled
+            className={`p-1.5 rounded-xl border text-xs font-medium transition-all ${settings.ttsVoiceEnabled
                 ? 'bg-zinc-900 text-amber-400 border-amber-500/30'
                 : 'bg-zinc-900/50 text-zinc-500 border-zinc-800'
               }`}
@@ -320,150 +349,143 @@ export const PlayerView: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="max-w-xl mx-auto w-full flex-1 flex flex-col justify-center items-center py-3 space-y-5">
+      <div className="max-w-xl mx-auto w-full flex-1 flex flex-col justify-center items-center py-1 space-y-2">
 
         {/* Preparation Banner */}
         {activeSession.isPreparing ? (
-          <div className="w-full text-center space-y-6 animate-pulse-subtle">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-bold text-sm">
+          <div className="w-full text-center space-y-4 animate-pulse-subtle">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-bold text-xs">
               <Sparkles className="w-4 h-4" />
               <span>PREPARE-SE!</span>
             </div>
 
-            <div className="text-8xl font-black text-amber-400 font-mono tracking-tight drop-shadow-[0_0_25px_rgba(245,158,11,0.5)]">
+            <div className="text-7xl font-black text-amber-400 font-mono tracking-tight drop-shadow-[0_0_25px_rgba(245,158,11,0.5)]">
               {activeSession.prepTimeRemaining}
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs text-zinc-400 uppercase tracking-widest font-semibold">PRÓXIMO EXERCÍCIO</p>
-              <h2 className="text-2xl font-black text-white font-['Outfit']">{currentExercise?.name}</h2>
+              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">PRÓXIMO EXERCÍCIO</p>
+              <h2 className="text-xl font-black text-white font-['Outfit']">{currentExercise?.name}</h2>
+              {currentExercise?.targetReps !== undefined && currentExercise.targetReps > 0 && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 font-bold text-xs mt-0.5">
+                  <Target className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Meta: {currentExercise.targetReps} {currentExercise.targetReps === 1 ? 'repetição' : 'repetições'}</span>
+                </div>
+              )}
               {currentExercise?.focusNotes && (
-                <p className="text-xs text-zinc-400 max-w-sm mx-auto">{currentExercise.focusNotes}</p>
+                <p className="text-xs text-zinc-400 max-w-sm mx-auto pt-0.5">{currentExercise.focusNotes}</p>
               )}
             </div>
           </div>
         ) : (
           <>
             {/* Exercise Header Badges */}
-            <div className="w-full text-center space-y-2">
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-amber-400 font-mono font-bold text-xs">
-                  BLOCO {currentExerciseIndex + 1} DE {workout.exercises.length}
-                </span>
-
-                {/* Continuous Real Time Clock Badge (NEVER PAUSES) */}
-                <span className="px-3 py-1 rounded-full bg-zinc-900 border border-amber-500/40 text-amber-300 font-mono font-bold text-xs flex items-center gap-1.5" title="Tempo total real percorrido desde o início (sem pausas)">
-                  <Clock className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-                  <span>Tempo Geral: {formatSecondsToMMSS(realElapsedSeconds)}</span>
-                </span>
-
-                {/* Status Badges Header */}
-                <div className="flex items-center gap-1.5 font-mono text-xs font-bold">
-                  {completedCount > 0 && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                      ✓ {completedCount}
-                    </span>
-                  )}
-                  {skippedCount > 0 && (
-                    <span className="px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400">
-                      ⏭ {skippedCount}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Dynamic Phase Indicator Badge (EXECUÇÃO vs DESCANSO) */}
-              <div className="flex items-center justify-center my-1">
+            <div className="w-full text-center space-y-1">
+              {/* Dynamic Phase Indicator Badge */}
+              <div className="flex items-center justify-center">
                 {isWorkPhase ? (
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/50 text-amber-400 font-black text-sm uppercase tracking-wider animate-pulse-subtle">
-                    <Flame className="w-4 h-4 fill-current text-amber-400" />
-                    <span>Fase: EXECUÇÃO</span>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400 font-black text-[11px] uppercase tracking-wider">
+                    <Flame className="w-3 h-3 fill-current text-amber-400" />
+                    <span>EXECUÇÃO</span>
                   </div>
                 ) : (
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-cyan-500/20 via-cyan-500/10 to-transparent border border-cyan-500/50 text-cyan-400 font-black text-sm uppercase tracking-wider animate-pulse-subtle">
-                    <Coffee className="w-4 h-4 text-cyan-400" />
-                    <span>Fase: DESCANSO</span>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-cyan-400 font-black text-[11px] uppercase tracking-wider">
+                    <Coffee className="w-3 h-3 text-cyan-400" />
+                    <span>DESCANSO</span>
                   </div>
                 )}
               </div>
 
-              <h1 className="text-2xl xs:text-3xl sm:text-4xl font-black text-white tracking-tight font-['Outfit'] leading-tight px-2">
+              <h1 className="text-2xl xs:text-3xl font-black text-white tracking-tight font-['Outfit'] leading-tight px-2">
                 {currentExercise?.name}
               </h1>
 
               {currentExercise?.focusNotes && (
-                <p className="text-xs sm:text-sm text-amber-400/90 font-medium max-w-md mx-auto px-4 bg-amber-500/5 py-1.5 rounded-xl border border-amber-500/10">
+                <p className="text-xs text-amber-400/90 font-medium max-w-md mx-auto px-3 bg-amber-500/5 py-0.5 rounded-lg border border-amber-500/10">
                   ⚡ {currentExercise.focusNotes}
                 </p>
               )}
 
-              {/* Reps Meta Badge & Edit Exercise Button (Available in Work & Rest) */}
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                {currentExercise?.targetReps !== undefined && currentExercise.targetReps > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 font-bold text-xs">
-                    <Target className="w-4 h-4 text-purple-400" />
-                    <span>Meta: {currentExercise.targetReps} reps</span>
-                  </span>
-                )}
-
+              {/* Edit Active Exercise Button */}
+              <div className="flex items-center justify-center pt-0.5">
                 <button
                   onClick={openEditActiveExerciseModal}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold hover:bg-amber-500/20 active:scale-95 transition-all cursor-pointer shadow-sm"
-                  title="Alterar repetições ou tempo deste exercício em tempo real"
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] font-bold hover:text-amber-400 hover:border-amber-500/30 active:scale-95 transition-all cursor-pointer"
+                  title="Alterar repetições ou tempo deste exercício"
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
+                  <Edit2 className="w-3 h-3 text-amber-400" />
                   <span>Editar Exercício</span>
                 </button>
               </div>
             </div>
 
-            {/* Giant Timer Circle */}
-            <div className="my-1">
+            {/* Display Circle (ProgressRing / Reps Banner) */}
+            <div className="my-0.5">
               <ProgressRing
-                radius={135}
-                stroke={12}
-                progress={phaseProgress}
+                radius={115}
+                stroke={10}
+                progress={isWorkPhase && isRepsMode ? 100 : phaseProgress}
                 colorClass={
                   activeSession.isPaused
                     ? 'stroke-zinc-600'
-                    : (isWorkPhase ? 'stroke-amber-400' : 'stroke-cyan-400')
+                    : (isWorkPhase
+                        ? (isRepsMode ? 'stroke-purple-500' : 'stroke-amber-400')
+                        : 'stroke-cyan-400')
                 }
               >
-                <div className="flex flex-col items-center">
-                  <span className={`text-5xl xs:text-6xl font-black font-mono tracking-tight text-white drop-shadow-md ${!isWorkPhase ? 'text-cyan-300' : ''}`}>
-                    {formatSecondsToMMSS(activeSession.phaseTimeRemaining)}
-                  </span>
-                  <span className="text-[11px] font-bold tracking-widest text-zinc-400 uppercase mt-1">
-                    {activeSession.isPaused ? 'PAUSADO' : (isWorkPhase ? 'TEMPO DE EXECUÇÃO' : 'TEMPO DE DESCANSO')}
-                  </span>
-                </div>
+                {isWorkPhase && isRepsMode ? (
+                  /* Exibição para Exercícios Por Repetição */
+                  <div className="flex flex-col items-center">
+                    <span className="text-5xl xs:text-6xl font-black font-mono tracking-tight text-purple-300 drop-shadow-lg">
+                      {currentExercise?.targetReps}
+                    </span>
+                    <span className="text-[10px] font-bold tracking-widest text-purple-400 uppercase mt-0.5">
+                      {activeSession.isPaused ? 'PAUSADO' : 'REPETIÇÕES (META)'}
+                    </span>
+                    <span className="text-[9px] text-zinc-400 mt-2 font-medium bg-zinc-900/90 px-2.5 py-0.5 rounded-full border border-purple-500/30">
+                      Toque em Concluir ✓ ao finalizar
+                    </span>
+                  </div>
+                ) : (
+                  /* Exibição para Exercícios Por Tempo e Fase de Descanso */
+                  <div className="flex flex-col items-center">
+                    <span className={`text-4xl xs:text-5xl font-black font-mono tracking-tight drop-shadow-md ${!isWorkPhase ? 'text-cyan-300' : 'text-amber-300'}`}>
+                      {formatSecondsToMMSS(activeSession.phaseTimeRemaining)}
+                    </span>
+                    <span className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase mt-0.5">
+                      {activeSession.isPaused ? 'PAUSADO' : (isWorkPhase ? 'TEMPO DE EXECUÇÃO' : 'TEMPO DE DESCANSO')}
+                    </span>
+                  </div>
+                )}
               </ProgressRing>
             </div>
 
             {/* Next Step / Exercise Preview Box */}
-            <div className="w-full bg-zinc-900/80 border border-zinc-800 rounded-2xl p-3.5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${isWorkPhase ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'
+            <div className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl p-2.5 flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs ${isWorkPhase ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'
                   }`}>
-                  {isWorkPhase ? <Coffee className="w-4 h-4" /> : <Flame className="w-4 h-4" />}
+                  {isWorkPhase ? <Coffee className="w-3.5 h-3.5" /> : <Flame className="w-3.5 h-3.5" />}
                 </div>
                 <div className="truncate">
-                  <p className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                  <p className="text-[9px] uppercase font-bold text-zinc-400 tracking-wider">
                     {isWorkPhase ? 'A SEGUIR' : 'PRÓXIMO EXERCÍCIO'}
                   </p>
-                  <p className="text-sm font-bold text-zinc-200 truncate">
+                  <p className="text-xs font-bold text-zinc-200 truncate">
                     {isWorkPhase
                       ? `Descanso (${formatSecondsToMMSS(currentExercise?.restDurationSeconds || 60)})`
-                      : (nextExerciseItem ? nextExerciseItem.name : 'Fim do treino! 🎉')
+                      : (nextExerciseItem
+                          ? `${nextExerciseItem.name}${nextExerciseItem.targetReps !== undefined && nextExerciseItem.targetReps > 0 ? ` (${nextExerciseItem.targetReps} ${nextExerciseItem.targetReps === 1 ? 'rep' : 'reps'})` : ''}`
+                          : 'Fim do treino! 🎉')
                     }
                   </p>
                 </div>
               </div>
 
               {nextExerciseItem && !isWorkPhase && (
-                <div className="flex items-center gap-1 text-xs font-mono font-bold text-amber-400 shrink-0">
+                <div className="flex items-center gap-1 text-[11px] font-mono font-bold text-amber-400 shrink-0">
                   <span>{getExerciseStartTime(workout.exercises, currentExerciseIndex + 1)}</span>
-                  <ChevronRight className="w-4 h-4 text-zinc-500" />
+                  <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
                 </div>
               )}
             </div>
@@ -471,29 +493,38 @@ export const PlayerView: React.FC = () => {
         )}
 
         {/* Multi-Colored Segmented Workout Progress Bar */}
-        <div className="w-full space-y-1.5 pt-1">
-          <div className="flex flex-wrap justify-between items-center text-xs font-medium font-mono gap-1">
-            <div className="flex items-center gap-2.5">
-              <span className="text-emerald-400 font-bold flex items-center gap-1" title="Tempo total dos exercícios concluídos">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                Concluído: {formatSecondsToMMSS(completedSeconds)} ({completedCount})
+        <div className="w-full space-y-1">
+          <div className="flex flex-wrap justify-between items-center text-[11px] font-medium font-mono gap-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-amber-400 font-bold text-[10px]">
+                Bloco {currentExerciseIndex + 1}/{workout.exercises.length}
               </span>
+              {completedCount > 0 && (
+                <span className="text-emerald-400 font-bold flex items-center gap-1" title="Exercícios concluídos">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  ✓ {completedCount}
+                </span>
+              )}
               {skippedCount > 0 && (
-                <span className="text-orange-400 font-bold flex items-center gap-1" title="Tempo total dos exercícios pulados">
-                  <span className="w-2 h-2 rounded-full bg-orange-500" />
-                  Pulado: {formatSecondsToMMSS(skippedSeconds)} ({skippedCount})
+                <span className="text-orange-400 font-bold flex items-center gap-1" title="Exercícios pulados">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                  ⏭ {skippedCount}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 text-zinc-400">
-              <span title="Tempo total real percorrido no relógio (sem pausas)">Geral: <strong className="text-amber-400">{formatSecondsToMMSS(realElapsedSeconds)}</strong></span>
+            <div className="flex flex-wrap items-center gap-1.5 text-zinc-400 text-[10px] font-mono">
+              <span title="Tempo total real percorrido no relógio (sem pausas)">
+                Geral: <strong className="text-amber-400 font-bold">{formatSecondsToMMSS(realElapsedSeconds)}</strong>
+              </span>
               <span>•</span>
-              <span title="Tempo acumulado (concluído + pulado)">{formatSecondsToMMSS(completedSeconds + skippedSeconds)} / {formatSecondsToMMSS(totalDuration)}</span>
+              <span title="Tempo executado previsto / Tempo total previsto">
+                Previsto: <strong className="text-zinc-200 font-bold">{formatSecondsToMMSS(completedSeconds + skippedSeconds)}</strong> / <strong className="text-zinc-200 font-bold">{formatSecondsToMMSS(totalDuration)}</strong>
+              </span>
             </div>
           </div>
 
           {/* Segmented Timeline Bar */}
-          <div className="h-3.5 w-full bg-zinc-900/90 rounded-full overflow-hidden border border-zinc-800/80 flex gap-0.5 p-0.5">
+          <div className="h-3 w-full bg-zinc-900/90 rounded-full overflow-hidden border border-zinc-800/80 flex gap-0.5 p-0.5">
             {workout.exercises.map((ex, idx) => {
               const status = activeSession.exerciseStatuses?.[idx];
               const isCurrent = currentExerciseIndex === idx;
@@ -553,24 +584,24 @@ export const PlayerView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Touch Controls Bar (3 Buttons for Mobile) */}
-      <div className="max-w-xl mx-auto w-full pt-1 pb-2">
-        <div className="grid grid-cols-3 gap-3 items-center">
+      {/* Main Touch Controls Bar (3 Buttons for Work Phase, 2 Buttons for Rest Phase) */}
+      <div className="max-w-xl mx-auto w-full pt-1 pb-1">
+        <div className={`grid ${isWorkPhase ? 'grid-cols-3' : 'grid-cols-2'} gap-2.5 items-center`}>
           {/* Pause / Play Primary Giant Button */}
           {activeSession.isPaused ? (
             <button
               onClick={resumeWorkout}
-              className="w-full h-16 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-zinc-950 font-black shadow-xl shadow-amber-500/30 flex flex-col items-center justify-center gap-1 transition-all cursor-pointer"
+              className="w-full h-14 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-zinc-950 font-black shadow-xl shadow-amber-500/30 flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer"
             >
-              <Play className="w-6 h-6 fill-current" />
+              <Play className="w-5 h-5 fill-current" />
               <span className="text-[10px] uppercase font-black tracking-wider">Continuar</span>
             </button>
           ) : (
             <button
               onClick={pauseWorkout}
-              className="w-full h-16 rounded-2xl bg-zinc-800 border border-amber-500/50 hover:bg-zinc-700 active:scale-95 text-amber-400 font-black flex flex-col items-center justify-center gap-1 transition-all cursor-pointer"
+              className="w-full h-14 rounded-2xl bg-zinc-800 border border-amber-500/50 hover:bg-zinc-700 active:scale-95 text-amber-400 font-black flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer"
             >
-              <Pause className="w-6 h-6 fill-current" />
+              <Pause className="w-5 h-5 fill-current" />
               <span className="text-[10px] uppercase font-black tracking-wider">Pausar</span>
             </button>
           )}
@@ -579,32 +610,34 @@ export const PlayerView: React.FC = () => {
           {isWorkPhase ? (
             <button
               onClick={() => openModal('skip')}
-              className="w-full h-16 rounded-2xl bg-zinc-900 border border-orange-500/40 hover:bg-zinc-800 active:scale-95 text-orange-400 font-bold flex flex-col items-center justify-center gap-1 transition-all"
-              title="Pular a execução deste exercício (solicita confirmação)"
+              className="w-full h-14 rounded-2xl bg-zinc-900 border border-orange-500/40 hover:bg-zinc-800 active:scale-95 text-orange-400 font-bold flex flex-col items-center justify-center gap-0.5 transition-all"
+              title="Pular a execução deste exercício"
             >
-              <SkipForward className="w-5 h-5 fill-current text-orange-400" />
+              <SkipForward className="w-4 h-4 fill-current text-orange-400" />
               <span className="text-[10px] uppercase font-bold tracking-wider text-orange-400">Pular Exercício</span>
             </button>
           ) : (
             <button
               onClick={() => openModal('skip')}
-              className="w-full h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 hover:bg-cyan-500/20 active:scale-95 text-cyan-400 font-bold flex flex-col items-center justify-center gap-1 transition-all"
-              title="Pular o tempo de descanso e iniciar próximo exercício (solicita confirmação)"
+              className="w-full h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 hover:bg-cyan-500/20 active:scale-95 text-cyan-400 font-bold flex flex-col items-center justify-center gap-0.5 transition-all"
+              title="Pular o tempo de descanso"
             >
-              <Coffee className="w-5 h-5 text-cyan-400" />
+              <Coffee className="w-4 h-4 text-cyan-400" />
               <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400">Pular Descanso</span>
             </button>
           )}
 
           {/* Concluir ✓ Button */}
-          <button
-            onClick={() => openModal('complete')}
-            className="w-full h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 hover:bg-emerald-500/20 active:scale-95 text-emerald-400 font-bold flex flex-col items-center justify-center gap-1 transition-all"
-            title="Concluir exercício (solicita confirmação)"
-          >
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Concluir</span>
-          </button>
+          {isWorkPhase && (
+            <button
+              onClick={() => openModal('complete')}
+              className="w-full h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 hover:bg-emerald-500/20 active:scale-95 text-emerald-400 font-bold flex flex-col items-center justify-center gap-0.5 transition-all"
+              title="Concluir exercício"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Concluir</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -724,54 +757,88 @@ export const PlayerView: React.FC = () => {
               </h3>
             </div>
 
-            <div className="space-y-3 text-xs">
-              {/* Quantidade de Repetições */}
-              <div className="p-3 rounded-2xl bg-purple-500/5 border border-purple-500/20 space-y-2">
-                <label className="block text-purple-400 font-bold flex items-center gap-1.5">
-                  <Target className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Quantidade de Repetições (Reps)</span>
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="999"
-                  value={editTargetReps}
-                  onChange={e => setEditTargetReps(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-purple-500 font-bold text-sm"
-                />
-              </div>
+            <div className="space-y-3.5 text-xs">
+              {/* Seletor de Modo do Exercício */}
+              <div>
+                <label className="block text-zinc-300 font-bold mb-1.5">Modo do Exercício</label>
+                <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-zinc-950 border border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => setEditExecutionType('reps')}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      editExecutionType === 'reps'
+                        ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Target className="w-4 h-4" />
+                    <span>Por Repetição</span>
+                  </button>
 
-              {/* Tempo de Execução */}
-              <div className="p-3 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-2">
-                <label className="block text-amber-400 font-bold flex items-center gap-1.5">
-                  <Flame className="w-3.5 h-3.5 fill-current" />
-                  <span>Tempo de Execução (Work)</span>
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-zinc-400 font-medium mb-1">Minutos</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="60"
-                      value={editWorkMinutes}
-                      onChange={e => setEditWorkMinutes(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-zinc-400 font-medium mb-1">Segundos</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="59"
-                      value={editWorkSeconds}
-                      onChange={e => setEditWorkSeconds(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditExecutionType('time')}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      editExecutionType === 'time'
+                        ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/30'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Flame className="w-4 h-4 fill-current" />
+                    <span>Por Tempo</span>
+                  </button>
                 </div>
               </div>
+
+              {/* Input Condicional baseado no Modo Escolhido */}
+              {editExecutionType === 'reps' ? (
+                <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/30 space-y-2">
+                  <label className="block text-purple-300 font-bold flex items-center gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Quantidade de Repetições (Reps)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="999"
+                    required
+                    value={editTargetReps}
+                    onChange={e => setEditTargetReps(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-purple-500 font-bold text-sm"
+                  />
+                </div>
+              ) : (
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <label className="block text-amber-300 font-bold flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5 fill-current text-amber-400" />
+                    <span>Tempo de Execução (Work)</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-zinc-400 font-medium mb-1">Minutos</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="60"
+                        value={editWorkMinutes}
+                        onChange={e => setEditWorkMinutes(parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-zinc-400 font-medium mb-1">Segundos</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="59"
+                        value={editWorkSeconds}
+                        onChange={e => setEditWorkSeconds(parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Tempo de Descanso */}
               <div className="p-3 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 space-y-2">
