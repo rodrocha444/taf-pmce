@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Save, ArrowLeft, Play, Coffee, Target, BookOpen } from 'lucide-react';
-import { useWorkoutStore } from '../store/workout-store';
-import type { Exercise } from '../types';
-import { getExerciseStartTime } from '../utils/formatters';
-import { ConfirmModal } from '../components/molecules';
-import { Button, Input, Select, ModalBase } from '../components/atoms';
-import { EmptyState, FormField } from '../components/molecules';
-import { ExerciseCard } from '../components/organisms';
+import { useWorkoutStore } from '../../store/workout-store';
+import type { Exercise } from '../../types';
+import { getExerciseStartTime } from '../../utils/formatters';
+import { ConfirmModal } from '../molecules';
+import { Button, Input, Select, ModalBase } from '../atoms';
+import { EmptyState, FormField } from '../molecules';
+import { ExerciseCard } from '../organisms';
 
 export const EditView: React.FC = () => {
   const navigate = useNavigate();

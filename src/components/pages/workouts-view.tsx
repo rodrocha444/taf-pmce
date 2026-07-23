@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dumbbell, Plus, Edit } from 'lucide-react';
-import { useWorkoutStore } from '../store/workout-store';
-import { ConfirmModal } from '../components/molecules';
-import { Button, Input, ModalBase } from '../components/atoms';
-import { EmptyState, FormField } from '../components/molecules';
-import { WorkoutCard } from '../components/organisms';
-import type { Workout } from '../types';
+import { useWorkoutStore } from '../../store/workout-store';
+import { ConfirmModal } from '../molecules';
+import { Button, Input, ModalBase } from '../atoms';
+import { EmptyState, FormField } from '../molecules';
+import { WorkoutCard } from '../organisms';
+import type { Workout } from '../../types';
 
 export const WorkoutsView: React.FC = () => {
   const navigate = useNavigate();

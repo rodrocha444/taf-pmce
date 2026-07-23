@@ -21,10 +21,10 @@ import {
   Edit2,
   Target
 } from 'lucide-react';
-import { useWorkoutStore } from '../store/workout-store';
-import { formatSecondsToMMSS, getExerciseStartTime, getTotalWorkoutDuration } from '../utils/formatters';
-import { ProgressRing } from '../components/molecules';
-import { wakeLockManager } from '../utils/wake-lock';
+import { useWorkoutStore } from '../../store/workout-store';
+import { formatSecondsToMMSS, getExerciseStartTime, getTotalWorkoutDuration } from '../../utils/formatters';
+import { ProgressRing } from '../molecules';
+import { wakeLockManager } from '../../utils/wake-lock';
 
 type ConfirmModalType = 'complete' | 'skip' | 'exit' | null;
 

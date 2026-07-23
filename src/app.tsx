@@ -1,15 +1,16 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
-import { BottomNav } from './components/bottom-nav';
-import { Header } from './components/organisms';
-import { PlayerView } from './views/player-view';
-import { EditView } from './views/edit-view';
-import { WorkoutsView } from './views/workouts-view';
-import { HistoryView } from './views/history-view';
-import { SettingsView } from './views/settings-view';
-import { RunningView } from './views/running-view';
-import { ReportsView } from './views/reports-view';
-import { ExercisesView } from './views/exercises-view';
+import { BottomNav, Header } from './components/organisms';
+import {
+  WorkoutsView,
+  ExercisesView,
+  RunningView,
+  PlayerView,
+  EditView,
+  HistoryView,
+  ReportsView,
+  SettingsView,
+} from './components/pages';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (

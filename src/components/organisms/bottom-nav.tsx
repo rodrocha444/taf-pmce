@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { History, BarChart3, Dumbbell, Play, Zap, BookOpen } from 'lucide-react';
-import { useWorkoutStore } from '../store/workout-store';
+import { useWorkoutStore } from '../../store/workout-store';
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();

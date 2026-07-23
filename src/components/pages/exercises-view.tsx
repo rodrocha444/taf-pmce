@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Plus, BookOpen } from 'lucide-react';
-import { useWorkoutStore } from '../store/workout-store';
-import type { ExerciseCatalogItem, ExerciseExecutionType } from '../types';
-import { ConfirmModal } from '../components/molecules';
-import { Button, Input, Select, ModalBase } from '../components/atoms';
-import { EmptyState, FormField } from '../components/molecules';
-import { ExerciseCatalogCard } from '../components/organisms';
-import { formatDate } from '../utils/formatters';
+import { useWorkoutStore } from '../../store/workout-store';
+import type { ExerciseCatalogItem, ExerciseExecutionType } from '../../types';
+import { ConfirmModal } from '../molecules';
+import { Button, Input, Select, ModalBase } from '../atoms';
+import { EmptyState, FormField } from '../molecules';
+import { ExerciseCatalogCard } from '../organisms';
+import { formatDate } from '../../utils/formatters';
 
 export const ExercisesView: React.FC = () => {
   const exerciseCatalog = useWorkoutStore(state => state.exerciseCatalog || []);

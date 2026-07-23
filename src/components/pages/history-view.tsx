@@ -8,10 +8,10 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { useWorkoutStore } from '../store/workout-store';
-import { formatDate, formatTimeHoursMins, formatSecondsToMMSS } from '../utils/formatters';
-import { ConfirmModal } from '../components/molecules';
-import type { ExerciseEvolutionLog } from '../types';
+import { useWorkoutStore } from '../../store/workout-store';
+import { formatDate, formatTimeHoursMins, formatSecondsToMMSS } from '../../utils/formatters';
+import { ConfirmModal } from '../molecules';
+import type { ExerciseEvolutionLog } from '../../types';
 
 export const HistoryView: React.FC = () => {
   const history = useWorkoutStore(state => state.history || []);

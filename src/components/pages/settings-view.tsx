@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Volume2, Mic, Sun, ArrowLeft, Play, FastForward } from 'lucide-react';
-import { useWorkoutStore } from '../store/workout-store';
-import { audioEngine } from '../utils/audio';
-import { speechEngine } from '../utils/speech';
-import { ConfirmModal } from '../components/molecules';
+import { useWorkoutStore } from '../../store/workout-store';
+import { audioEngine } from '../../utils/audio';
+import { speechEngine } from '../../utils/speech';
+import { ConfirmModal } from '../molecules';
 
 export const SettingsView: React.FC = () => {
   const navigate = useNavigate();
