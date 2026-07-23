@@ -17,8 +17,6 @@ export const ExercisesView: React.FC = () => {
   const addCatalogExercise = useWorkoutStore(state => state.addCatalogExercise);
   const deleteCatalogExercise = useWorkoutStore(state => state.deleteCatalogExercise);
 
-  const [activeCategory, setActiveCategory] = useState<string>('todos');
-
   // Modals state
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingItem, setEditingItem] = useState<ExerciseCatalogItem | null>(null);
@@ -26,7 +24,6 @@ export const ExercisesView: React.FC = () => {
 
   // Form State
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<ExerciseCatalogItem['category']>('flexao');
   const [executionType, setExecutionType] = useState<ExerciseExecutionType>('reps');
   const [defaultTargetReps, setDefaultTargetReps] = useState<number | ''>(20);
   const [workMins, setWorkMins] = useState(1);
@@ -35,12 +32,9 @@ export const ExercisesView: React.FC = () => {
   const [restSecs, setRestSecs] = useState(0);
   const [focusNotes, setFocusNotes] = useState('');
 
-  const categories = ['todos', 'barra', 'abdominal', 'flexao', 'perna', 'isometria', 'outros'];
-
   const openCreateModal = () => {
     setEditingItem(null);
     setName('');
-    setCategory('flexao');
     setExecutionType('reps');
     setDefaultTargetReps(20);
     setWorkMins(1);
@@ -54,7 +48,6 @@ export const ExercisesView: React.FC = () => {
   const openEditModal = (item: ExerciseCatalogItem) => {
     setEditingItem(item);
     setName(item.name);
-    setCategory(item.category);
     setExecutionType(item.executionType);
     setDefaultTargetReps(item.defaultTargetReps ?? 20);
 
@@ -86,7 +79,6 @@ export const ExercisesView: React.FC = () => {
           c.id === editingItem.id ? {
             ...c,
             name: name.trim(),
-            category,
             executionType,
             defaultTargetReps: repsVal,
             defaultWorkDurationSeconds: totalWorkSecs,
@@ -98,7 +90,6 @@ export const ExercisesView: React.FC = () => {
     } else {
       addCatalogExercise({
         name: name.trim(),
-        category,
         executionType,
         defaultTargetReps: repsVal,
         defaultWorkDurationSeconds: totalWorkSecs,
@@ -116,11 +107,6 @@ export const ExercisesView: React.FC = () => {
       setDeleteTargetItem(null);
     }
   };
-
-  const filteredCatalog = exerciseCatalog.filter(item => {
-    if (activeCategory === 'todos') return true;
-    return item.category === activeCategory;
-  });
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
@@ -148,26 +134,9 @@ export const ExercisesView: React.FC = () => {
         </button>
       </div>
 
-      {/* Category Filter Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1">
-        {categories.map(cat => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer ${
-              activeCategory === cat
-                ? 'bg-amber-500 text-zinc-950 shadow-md'
-                : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-white'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
       {/* Exercises List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredCatalog.map(item => {
+        {exerciseCatalog.map(item => {
           const isReps = item.executionType === 'reps' || (item.defaultTargetReps !== undefined && item.defaultTargetReps > 0);
 
           return (
@@ -177,11 +146,9 @@ export const ExercisesView: React.FC = () => {
             >
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold uppercase tracking-wider">
-                    {item.category || 'exercício'}
-                  </span>
+                  <h3 className="text-base font-bold text-white font-['Outfit']">{item.name}</h3>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => openEditModal(item)}
                       className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
@@ -200,8 +167,6 @@ export const ExercisesView: React.FC = () => {
                     )}
                   </div>
                 </div>
-
-                <h3 className="text-base font-bold text-white font-['Outfit']">{item.name}</h3>
 
                 {/* Properties Badge */}
                 <div className="grid grid-cols-3 gap-2 bg-zinc-950 p-2.5 rounded-2xl border border-zinc-800/80 text-center font-mono text-xs">
@@ -266,34 +231,16 @@ export const ExercisesView: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-300">Categoria</label>
-                <select
-                  value={category}
-                  onChange={e => setCategory(e.target.value as ExerciseCatalogItem['category'])}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none capitalize"
-                >
-                  <option value="flexao">Flexão</option>
-                  <option value="barra">Barra</option>
-                  <option value="abdominal">Abdominal</option>
-                  <option value="perna">Perna / Corrida</option>
-                  <option value="isometria">Isometria</option>
-                  <option value="outros">Outros</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-300">Tipo de Execução</label>
-                <select
-                  value={executionType}
-                  onChange={e => setExecutionType(e.target.value as ExerciseExecutionType)}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
-                >
-                  <option value="reps">Por Repetições</option>
-                  <option value="time">Por Tempo (Isometria)</option>
-                </select>
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-300">Tipo de Execução</label>
+              <select
+                value={executionType}
+                onChange={e => setExecutionType(e.target.value as ExerciseExecutionType)}
+                className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
+              >
+                <option value="reps">Por Repetições</option>
+                <option value="time">Por Tempo (Isometria)</option>
+              </select>
             </div>
 
             {executionType === 'reps' && (

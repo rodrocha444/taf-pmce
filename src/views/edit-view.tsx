@@ -317,7 +317,7 @@ export const EditView: React.FC = () => {
                     <option value="">-- Escolher da Biblioteca --</option>
                     {exerciseCatalog.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.name} ({c.category})
+                        {c.name}
                       </option>
                     ))}
                   </select>

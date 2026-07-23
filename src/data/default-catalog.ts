@@ -4,7 +4,6 @@ export const DEFAULT_EXERCISE_CATALOG: ExerciseCatalogItem[] = [
   {
     id: 'cat-flexao-braco',
     name: 'Flexão de Braço no Solo',
-    category: 'flexao',
     executionType: 'reps',
     defaultTargetReps: 20,
     defaultWorkDurationSeconds: 60,
@@ -15,7 +14,6 @@ export const DEFAULT_EXERCISE_CATALOG: ExerciseCatalogItem[] = [
   {
     id: 'cat-barra-fixa-dinamica',
     name: 'Barra Fixa Dinâmica (Masculino)',
-    category: 'barra',
     executionType: 'reps',
     defaultTargetReps: 8,
     defaultWorkDurationSeconds: 60,
@@ -26,7 +24,6 @@ export const DEFAULT_EXERCISE_CATALOG: ExerciseCatalogItem[] = [
   {
     id: 'cat-isometria-barra',
     name: 'Isometria na Barra (Feminino)',
-    category: 'isometria',
     executionType: 'time',
     defaultWorkDurationSeconds: 30,
     defaultRestDurationSeconds: 60,
@@ -36,7 +33,6 @@ export const DEFAULT_EXERCISE_CATALOG: ExerciseCatalogItem[] = [
   {
     id: 'cat-abdominal-remador',
     name: 'Abdominal Remador (1 Minuto)',
-    category: 'abdominal',
     executionType: 'reps',
     defaultTargetReps: 35,
     defaultWorkDurationSeconds: 60,
@@ -47,7 +43,6 @@ export const DEFAULT_EXERCISE_CATALOG: ExerciseCatalogItem[] = [
   {
     id: 'cat-shuttle-run',
     name: 'Corrida de Ir e Vir (Shuttle Run 9,14m)',
-    category: 'perna',
     executionType: 'time',
     defaultWorkDurationSeconds: 15,
     defaultRestDurationSeconds: 60,
@@ -57,7 +52,6 @@ export const DEFAULT_EXERCISE_CATALOG: ExerciseCatalogItem[] = [
   {
     id: 'cat-agachamento',
     name: 'Agachamento Livre',
-    category: 'perna',
     executionType: 'reps',
     defaultTargetReps: 25,
     defaultWorkDurationSeconds: 60,
