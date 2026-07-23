@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
   Award, 
-  ArrowLeft, 
   Trash2, 
-  BarChart3, 
   Plus, 
   ChevronDown, 
   ChevronUp, 
@@ -17,7 +14,6 @@ import { ConfirmModal } from '../components/confirm-modal';
 import type { ExerciseEvolutionLog } from '../types';
 
 export const HistoryView: React.FC = () => {
-  const navigate = useNavigate();
   const history = useWorkoutStore(state => state.history || []);
   const workouts = useWorkoutStore(state => state.workouts || []);
   const deleteHistoryLog = useWorkoutStore(state => state.deleteHistoryLog);
@@ -37,6 +33,20 @@ export const HistoryView: React.FC = () => {
   // Selected workout exercises execution status and reps tracking
   const selectedWorkout = workouts.find(w => w.id === selectedWorkoutId) || workouts[0];
   const [exerciseStatusMap, setExerciseStatusMap] = useState<Record<string, { completed: boolean; reps: string; timeSecs: string }>>({});
+
+  const showManualHistoryModal = useWorkoutStore(state => state.showManualHistoryModal);
+  const setShowManualHistoryModal = useWorkoutStore(state => state.setShowManualHistoryModal);
+
+  React.useEffect(() => {
+    if (showManualHistoryModal) {
+      handleOpenManualModal();
+    }
+  }, [showManualHistoryModal]);
+
+  const handleCloseManualModal = () => {
+    setShowManualModal(false);
+    setShowManualHistoryModal(false);
+  };
 
   // Initialize or reset exercise tracking when modal opens or workout changes
   const handleOpenManualModal = () => {
@@ -128,7 +138,7 @@ export const HistoryView: React.FC = () => {
       exerciseLogs
     });
 
-    setShowManualModal(false);
+    handleCloseManualModal();
   };
 
   const totalSessions = history.length;
@@ -137,34 +147,19 @@ export const HistoryView: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      {/* Action Bar (Limpar se houver historico) */}
+      {history.length > 0 && (
+        <div className="flex items-center justify-end">
           <button
-            onClick={() => navigate('/')}
-            className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold"
+            onClick={() => setShowClearAllModal(true)}
+            className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-rose-400 text-xs font-semibold flex items-center gap-1 transition-all"
+            title="Limpar Histórico"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Voltar</span>
-          </button>
-
-          <button
-            onClick={() => navigate('/reports')}
-            className="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 hover:border-amber-500/30 flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer"
-          >
-            <BarChart3 className="w-4 h-4 text-amber-400" />
-            <span>Relatórios</span>
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Limpar Histórico</span>
           </button>
         </div>
-
-        <button
-          onClick={handleOpenManualModal}
-          className="px-3.5 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs shadow-lg shadow-amber-500/20 hover:bg-amber-400 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Registrar Treino</span>
-        </button>
-      </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-3">
@@ -330,7 +325,7 @@ export const HistoryView: React.FC = () => {
               <h3 className="text-base font-bold text-white font-['Outfit']">Registrar Treino Concluído</h3>
               <button
                 type="button"
-                onClick={() => setShowManualModal(false)}
+                onClick={handleCloseManualModal}
                 className="text-zinc-400 hover:text-white font-bold text-sm p-1"
               >
                 ✕
@@ -467,7 +462,7 @@ export const HistoryView: React.FC = () => {
             <div className="flex items-center gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setShowManualModal(false)}
+                onClick={handleCloseManualModal}
                 className="w-1/2 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700"
               >
                 Cancelar

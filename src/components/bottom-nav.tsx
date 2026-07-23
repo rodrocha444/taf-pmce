@@ -1,18 +1,23 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, History, BarChart3, Dumbbell, Play, Zap, BookOpen } from 'lucide-react';
+import { History, BarChart3, Dumbbell, Play, Zap, BookOpen } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
   const activeSession = useWorkoutStore(state => state.activeSession);
 
-  // Hide bottom nav in active player fullscreen mode
-  if (location.pathname === '/player') {
+  // Hide bottom nav in active player fullscreen mode or edit view
+  if (location.pathname === '/player' || location.pathname === '/edit') {
     return null;
   }
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    if (path === '/workouts') {
+      return location.pathname === '/' || location.pathname === '/workouts';
+    }
+    return location.pathname === path;
+  };
 
   return (
     <>
@@ -43,16 +48,6 @@ export const BottomNav: React.FC = () => {
 
       {/* Clean Bottom Tab Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur-lg border-t border-zinc-800/80 px-1 py-2 flex items-center justify-around max-w-xl mx-auto bottom-nav-safe text-center">
-        <Link
-          to="/"
-          className={`flex flex-col items-center gap-0.5 p-1 rounded-xl text-[9px] font-bold transition-all ${
-            isActive('/') ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          <Home className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span>Início</span>
-        </Link>
-
         <Link
           to="/workouts"
           className={`flex flex-col items-center gap-0.5 p-1 rounded-xl text-[9px] font-bold transition-all ${

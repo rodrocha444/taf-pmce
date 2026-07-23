@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Save, ArrowLeft, Trash2, Edit2, Play, Coffee, Target, BookOpen } from 'lucide-react';
+import { Plus, Save, ArrowLeft, Play, Coffee, Target, BookOpen } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 import type { Exercise } from '../types';
-import { formatSecondsToMMSS, getExerciseStartTime } from '../utils/formatters';
+import { getExerciseStartTime } from '../utils/formatters';
 import { ConfirmModal } from '../components/confirm-modal';
+import { Button, Input, Select, ModalBase } from '../components/atoms';
+import { EmptyState, FormField } from '../components/molecules';
+import { ExerciseCard } from '../components/organisms';
 
 export const EditView: React.FC = () => {
   const navigate = useNavigate();
@@ -129,28 +132,18 @@ export const EditView: React.FC = () => {
     closeModal();
   };
 
-  React.useEffect(() => {
-    if (isAdding || editingExercise) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isAdding, editingExercise]);
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
       {/* Top Header: Voltar | Nome do Treino | Novo Exercício */}
       <div className="flex items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
-        <button
+        <Button
+          variant="zinc"
+          size="md"
+          icon={<ArrowLeft className="w-4 h-4" />}
           onClick={() => navigate('/workouts')}
-          className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold shrink-0"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Voltar</span>
-        </button>
+          Voltar
+        </Button>
 
         <div className="text-center px-2 min-w-0">
           <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400 block">Editando Treino</span>
@@ -159,310 +152,216 @@ export const EditView: React.FC = () => {
           </h2>
         </div>
 
-        <button
+        <Button
+          variant="amber"
+          size="md"
+          icon={<Plus className="w-4 h-4" />}
           onClick={openAddModal}
-          className="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer shrink-0"
         >
-          <Plus className="w-4 h-4" />
-          <span>Novo Exercício</span>
-        </button>
+          Novo Exercício
+        </Button>
       </div>
 
       {/* Exercises List */}
       <div className="space-y-3">
         {workout.exercises.length === 0 ? (
-          <div className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-8 text-center space-y-3">
-            <h3 className="text-base font-bold text-white font-['Outfit']">Nenhum Exercício no Treino</h3>
-            <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-              Este treino ainda não possui exercícios. Clique em "+ Novo Exercício" para adicionar o primeiro!
-            </p>
-            <button
-              onClick={openAddModal}
-              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Novo Exercício</span>
-            </button>
-          </div>
+          <EmptyState
+            icon={<Plus className="w-10 h-10 text-amber-400" />}
+            title="Nenhum Exercício no Treino"
+            description="Este treino ainda não possui exercícios. Clique em '+ Novo Exercício' para adicionar o primeiro!"
+            actionLabel="Novo Exercício"
+            actionIcon={<Plus className="w-4 h-4" />}
+            onAction={openAddModal}
+          />
         ) : (
-          workout.exercises.map((exercise, idx) => {
-          const isRepsMode = exercise.executionType === 'reps' || (exercise.targetReps !== undefined && exercise.targetReps > 0);
-
-          return (
-            <div
+          workout.exercises.map((exercise, idx) => (
+            <ExerciseCard
               key={exercise.id}
-              className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group hover:border-zinc-700 transition-all"
-            >
-              <div className="flex items-start gap-3">
-                {/* Badge showing timestamp start */}
-                <div className="px-2.5 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 font-mono text-xs font-bold text-amber-400 shrink-0 text-center">
-                  <span className="block text-[9px] text-zinc-400 uppercase font-sans">Início</span>
-                  {getExerciseStartTime(workout.exercises, idx)}
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-zinc-400">#{idx + 1}</span>
-                    <h3 className="text-sm font-bold text-white">{exercise.name}</h3>
-                  </div>
-                  {exercise.focusNotes && (
-                    <p className="text-xs text-zinc-400 mt-0.5">{exercise.focusNotes}</p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                    {isRepsMode ? (
-                      <span className="text-[11px] font-mono text-purple-300 bg-purple-500/15 px-2.5 py-0.5 rounded-lg border border-purple-500/30 flex items-center gap-1 font-bold">
-                        <Target className="w-3 h-3 text-purple-400" />
-                        {exercise.targetReps} reps
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-mono text-amber-300 bg-amber-500/15 px-2.5 py-0.5 rounded-lg border border-amber-500/30 flex items-center gap-1 font-bold">
-                        <Play className="w-3 h-3 fill-current text-amber-400" />
-                        Execução: {formatSecondsToMMSS(exercise.workDurationSeconds || 60)}
-                      </span>
-                    )}
-
-                    <span className="text-[11px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-lg border border-cyan-500/20 flex items-center gap-1">
-                      <Coffee className="w-3 h-3" />
-                      Descanso: {formatSecondsToMMSS(exercise.restDurationSeconds || 60)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-1.5 self-end sm:self-center pt-2 sm:pt-0 border-t sm:border-t-0 border-zinc-800/60 w-full sm:w-auto justify-end">
-                <button
-                  disabled={idx === 0}
-                  onClick={() => reorderExercisesInWorkout(workout.id, idx, idx - 1)}
-                  className="p-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-20 text-xs font-bold"
-                  title="Subir"
-                >
-                  ▲
-                </button>
-                <button
-                  disabled={idx === workout.exercises.length - 1}
-                  onClick={() => reorderExercisesInWorkout(workout.id, idx, idx + 1)}
-                  className="p-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-20 text-xs font-bold"
-                  title="Descer"
-                >
-                  ▼
-                </button>
-
-                <button
-                  onClick={() => openEditModal(exercise)}
-                  className="p-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs font-semibold flex items-center gap-1 border border-amber-500/20"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  <span className="hidden xs:inline">Editar</span>
-                </button>
-
-                <button
-                  onClick={() => setDeleteExerciseTarget(exercise)}
-                  className="p-2 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-semibold border border-rose-500/20"
-                  title="Excluir"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          );
-        })
-      )}
+              exercise={exercise}
+              index={idx}
+              startTimeFormatted={getExerciseStartTime(workout.exercises, idx)}
+              showActions
+              isFirst={idx === 0}
+              isLast={idx === workout.exercises.length - 1}
+              onMoveUp={() => reorderExercisesInWorkout(workout.id, idx, idx - 1)}
+              onMoveDown={() => reorderExercisesInWorkout(workout.id, idx, idx + 1)}
+              onEdit={() => openEditModal(exercise)}
+              onDelete={() => setDeleteExerciseTarget(exercise)}
+            />
+          ))
+        )}
       </div>
 
       {/* Form Modal (Add / Edit Exercise) */}
-      {(isAdding || editingExercise) && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto flex items-center justify-center p-4 overscroll-contain">
-          <form
-            onSubmit={handleSaveModal}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 sm:p-6 max-w-md w-full space-y-4 shadow-2xl my-auto max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overscroll-contain"
-          >
-            <h3 className="text-lg font-bold text-white font-['Outfit']">
-              {isAdding ? 'Adicionar Novo Exercício' : 'Editar Exercício'}
-            </h3>
+      <ModalBase isOpen={isAdding || editingExercise !== null} onClose={closeModal} maxWidth="md">
+        <form onSubmit={handleSaveModal} className="space-y-4">
+          <h3 className="text-lg font-bold text-white font-['Outfit']">
+            {isAdding ? 'Adicionar Novo Exercício' : 'Editar Exercício'}
+          </h3>
 
-            <div className="space-y-3.5 text-xs">
-              {/* Seletor Único de Exercício da Biblioteca */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-zinc-300">
-                    Exercício
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/exercises')}
-                    className="text-[11px] font-bold text-amber-400 hover:underline flex items-center gap-1"
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    <span>Biblioteca</span>
-                  </button>
-                </div>
-
-                <select
-                  required
-                  value={selectedCatalogId}
-                  onChange={e => handleSelectCatalogItem(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none focus:border-amber-400"
+          <div className="space-y-3.5 text-xs">
+            {/* Seletor Único de Exercício da Biblioteca */}
+            <FormField
+              label="Exercício"
+              action={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  icon={<BookOpen className="w-3.5 h-3.5" />}
+                  onClick={() => navigate('/exercises')}
+                  className="text-amber-400 hover:underline"
                 >
-                  <option value="">-- Selecionar Exercício da Biblioteca --</option>
-                  {exerciseCatalog.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  Biblioteca
+                </Button>
+              }
+            >
+              <Select
+                required
+                value={selectedCatalogId}
+                onChange={e => handleSelectCatalogItem(e.target.value)}
+              >
+                <option value="">-- Selecionar Exercício da Biblioteca --</option>
+                {exerciseCatalog.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
 
-              <div>
-                <label className="block text-zinc-300 font-semibold mb-1">Foco / Observação (Ex: Cotovelos para trás)</label>
-                <input
-                  type="text"
-                  value={formNotes}
-                  onChange={e => setFormNotes(e.target.value)}
-                  placeholder="Ex: Foco TAF - Manter tronco firme"
-                  className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
+            <FormField label="Foco / Observação (Ex: Cotovelos para trás)">
+              <Input
+                type="text"
+                value={formNotes}
+                onChange={e => setFormNotes(e.target.value)}
+                placeholder="Ex: Foco TAF - Manter tronco firme"
+              />
+            </FormField>
+
+            {/* Seletor de Tipo de Execução: Repetição vs Tempo */}
+            <div>
+              <label className="block text-zinc-300 font-bold mb-1.5">Modo do Exercício</label>
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-zinc-950 border border-zinc-800">
+                <Button
+                  type="button"
+                  variant={formExecutionType === 'reps' ? 'purple' : 'ghost'}
+                  size="sm"
+                  icon={<Target className="w-4 h-4" />}
+                  onClick={() => setFormExecutionType('reps')}
+                  fullWidth
+                >
+                  Por Repetição
+                </Button>
+
+                <Button
+                  type="button"
+                  variant={formExecutionType === 'time' ? 'amber' : 'ghost'}
+                  size="sm"
+                  icon={<Play className="w-4 h-4 fill-current" />}
+                  onClick={() => setFormExecutionType('time')}
+                  fullWidth
+                >
+                  Por Tempo
+                </Button>
+              </div>
+            </div>
+
+            {/* Input Condicional baseado no Modo Escolhido */}
+            {formExecutionType === 'reps' ? (
+              <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/30 space-y-2">
+                <label className="block text-purple-300 font-bold flex items-center gap-1.5">
+                  <Target className="w-4 h-4 text-purple-400" />
+                  <span>Quantidade de Repetições (Reps)</span>
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="999"
+                  required
+                  value={formTargetReps}
+                  onChange={e => setFormTargetReps(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
+                  placeholder="Ex: 30"
+                  accentColor="purple"
+                  className="font-bold text-sm"
                 />
+                <p className="text-[11px] text-purple-300/80">O atleta tentará realizar esta quantidade exata de repetições durante o bloco.</p>
               </div>
-
-              {/* Seletor de Tipo de Execução: Repetição vs Tempo */}
-              <div>
-                <label className="block text-zinc-300 font-bold mb-1.5">Modo do Exercício</label>
-                <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-zinc-950 border border-zinc-800">
-                  <button
-                    type="button"
-                    onClick={() => setFormExecutionType('reps')}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                      formExecutionType === 'reps'
-                        ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                        : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <Target className="w-4 h-4" />
-                    <span>Por Repetição</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setFormExecutionType('time')}
-                    className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                      formExecutionType === 'time'
-                        ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/30'
-                        : 'text-zinc-400 hover:text-white'
-                    }`}
-                  >
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>Por Tempo</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Input Condicional baseado no Modo Escolhido */}
-              {formExecutionType === 'reps' ? (
-                <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/30 space-y-2">
-                  <label className="block text-purple-300 font-bold flex items-center gap-1.5">
-                    <Target className="w-4 h-4 text-purple-400" />
-                    <span>Quantidade de Repetições (Reps)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="999"
-                    required
-                    value={formTargetReps}
-                    onChange={e => setFormTargetReps(e.target.value === '' ? '' : parseInt(e.target.value) || 0)}
-                    placeholder="Ex: 30"
-                    className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-purple-500 font-bold text-sm"
-                  />
-                  <p className="text-[11px] text-purple-300/80">O atleta tentará realizar esta quantidade exata de repetições durante o bloco.</p>
-                </div>
-              ) : (
-                <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
-                  <label className="block text-amber-300 font-bold flex items-center gap-1.5">
-                    <Play className="w-4 h-4 fill-current text-amber-400" />
-                    <span>Tempo de Execução (Work)</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-zinc-400 font-medium mb-1">Minutos</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="60"
-                        value={workMinutes}
-                        onChange={e => setWorkMinutes(parseInt(e.target.value) || 0)}
-                        className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-zinc-400 font-medium mb-1">Segundos</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="59"
-                        value={workSeconds}
-                        onChange={e => setWorkSeconds(parseInt(e.target.value) || 0)}
-                        className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-amber-300/80">O cronômetro fará a contagem regressiva deste tempo de execução (isometria, prancha, corridas).</p>
-                </div>
-              )}
-
-              {/* Tempo de Descanso */}
-              <div className="p-3 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 space-y-2">
-                <label className="block text-cyan-400 font-bold flex items-center gap-1.5">
-                  <Coffee className="w-3.5 h-3.5" />
-                  <span>Tempo de Descanso (Rest)</span>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                <label className="block text-amber-300 font-bold flex items-center gap-1.5">
+                  <Play className="w-4 h-4 fill-current text-amber-400" />
+                  <span>Tempo de Execução (Work)</span>
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-zinc-400 font-medium mb-1">Minutos</label>
-                    <input
+                    <Input
                       type="number"
                       min="0"
                       max="60"
-                      value={restMinutes}
-                      onChange={e => setRestMinutes(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-cyan-500"
+                      value={workMinutes}
+                      onChange={e => setWorkMinutes(parseInt(e.target.value) || 0)}
                     />
                   </div>
                   <div>
                     <label className="block text-zinc-400 font-medium mb-1">Segundos</label>
-                    <input
+                    <Input
                       type="number"
                       min="0"
                       max="59"
-                      value={restSeconds}
-                      onChange={e => setRestSeconds(parseInt(e.target.value) || 0)}
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-cyan-500"
+                      value={workSeconds}
+                      onChange={e => setWorkSeconds(parseInt(e.target.value) || 0)}
                     />
                   </div>
                 </div>
+                <p className="text-[11px] text-amber-300/80">O cronômetro fará a contagem regressiva deste tempo de execução.</p>
               </div>
+            )}
 
-
+            {/* Tempo de Descanso */}
+            <div className="p-3 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 space-y-2">
+              <label className="block text-cyan-400 font-bold flex items-center gap-1.5">
+                <Coffee className="w-3.5 h-3.5" />
+                <span>Tempo de Descanso (Rest)</span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-400 font-medium mb-1">Minutos</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={restMinutes}
+                    onChange={e => setRestMinutes(parseInt(e.target.value) || 0)}
+                    accentColor="cyan"
+                  />
+                </div>
+                <div>
+                  <label className="block text-zinc-400 font-medium mb-1">Segundos</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={restSeconds}
+                    onChange={e => setRestSeconds(parseInt(e.target.value) || 0)}
+                    accentColor="cyan"
+                  />
+                </div>
+              </div>
             </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <button
-                type="button"
-                onClick={closeModal}
-                className="w-full py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700 active:scale-95"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs hover:bg-amber-400 active:scale-95 shadow-md shadow-amber-500/20 flex items-center justify-center gap-1"
-              >
-                <Save className="w-4 h-4" />
-                <span>Salvar</span>
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <Button type="button" variant="zinc" size="md" fullWidth onClick={closeModal}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="amber" size="md" fullWidth icon={<Save className="w-4 h-4" />}>
+              Salvar
+            </Button>
+          </div>
+        </form>
+      </ModalBase>
 
       {/* Delete Exercise Confirmation Modal */}
       <ConfirmModal
@@ -479,8 +378,6 @@ export const EditView: React.FC = () => {
         }}
         onCancel={() => setDeleteExerciseTarget(null)}
       />
-
-
     </div>
   );
 };

@@ -1,33 +1,37 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Trash2, 
-  Edit2, 
-  ArrowLeft, 
-  BookOpen,
-  Target,
-  Play,
-  TrendingUp
-} from 'lucide-react';
+import { Plus, BookOpen } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 import type { ExerciseCatalogItem, ExerciseExecutionType } from '../types';
 import { ConfirmModal } from '../components/confirm-modal';
+import { Button, Input, Select, ModalBase } from '../components/atoms';
+import { EmptyState, FormField } from '../components/molecules';
+import { ExerciseCatalogCard } from '../components/organisms';
 import { formatDate } from '../utils/formatters';
 
 export const ExercisesView: React.FC = () => {
-  const navigate = useNavigate();
   const exerciseCatalog = useWorkoutStore(state => state.exerciseCatalog || []);
   const addCatalogExercise = useWorkoutStore(state => state.addCatalogExercise);
   const deleteCatalogExercise = useWorkoutStore(state => state.deleteCatalogExercise);
   const history = useWorkoutStore(state => state.history || []);
 
-  // Modals state
+  const showCreateExerciseModal = useWorkoutStore(state => state.showCreateExerciseModal);
+  const setShowCreateExerciseModal = useWorkoutStore(state => state.setShowCreateExerciseModal);
+
+  React.useEffect(() => {
+    if (showCreateExerciseModal) {
+      openCreateModal();
+    }
+  }, [showCreateExerciseModal]);
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setShowCreateExerciseModal(false);
+  };
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingItem, setEditingItem] = useState<ExerciseCatalogItem | null>(null);
   const [deleteTargetItem, setDeleteTargetItem] = useState<ExerciseCatalogItem | null>(null);
 
-  // Form State (Nome, Tipo de Execução, Informação sobre o exercício)
+  // Form State
   const [name, setName] = useState('');
   const [executionType, setExecutionType] = useState<ExerciseExecutionType>('reps');
   const [focusNotes, setFocusNotes] = useState('');
@@ -73,7 +77,7 @@ export const ExercisesView: React.FC = () => {
       });
     }
 
-    setShowModal(false);
+    handleCloseModal();
   };
 
   const handleConfirmDelete = () => {
@@ -109,236 +113,97 @@ export const ExercisesView: React.FC = () => {
     return { logs, maxVal };
   };
 
-  React.useEffect(() => {
-    if (showModal) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [showModal]);
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
-      {/* Top Header */}
-      <div className="flex items-center justify-between gap-3">
-        <button
-          onClick={() => navigate('/workouts')}
-          className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Treinos</span>
-        </button>
-
-        <h1 className="text-xl font-bold text-white font-['Outfit'] flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-amber-400" />
-          <span>Biblioteca de Exercícios</span>
-        </h1>
-
-        <button
-          onClick={openCreateModal}
-          className="px-3.5 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs shadow-lg shadow-amber-500/20 hover:bg-amber-400 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Criar Exercício</span>
-        </button>
-      </div>
+      {/* Exercises List Cards */}
 
       {/* Exercises List Cards */}
       {exerciseCatalog.length === 0 ? (
-        <div className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-8 text-center space-y-3">
-          <BookOpen className="w-10 h-10 text-amber-400 mx-auto opacity-80" />
-          <h3 className="text-base font-bold text-white font-['Outfit']">Biblioteca Vazia</h3>
-          <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-            Você ainda não tem exercícios cadastrados na biblioteca. Clique no botão "+ Criar Exercício" para adicionar seu primeiro exercício!
-          </p>
-          <button
-            onClick={openCreateModal}
-            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Criar Primeiro Exercício</span>
-          </button>
-        </div>
+        <EmptyState
+          icon={<BookOpen className="w-10 h-10 text-amber-400" />}
+          title="Biblioteca Vazia"
+          description="Você ainda não tem exercícios cadastrados na biblioteca. Clique no botão '+ Criar Exercício' para adicionar seu primeiro exercício!"
+          actionLabel="Criar Primeiro Exercício"
+          actionIcon={<Plus className="w-4 h-4" />}
+          onAction={openCreateModal}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {exerciseCatalog.map(item => {
-          const { logs, maxVal } = getExerciseLogs(item.name);
-          const isReps = item.executionType === 'reps';
+            const { logs, maxVal } = getExerciseLogs(item.name);
 
-          return (
-            <div
-              key={item.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-4 hover:border-zinc-700 transition-all flex flex-col justify-between"
-            >
-              <div className="space-y-3">
-                {/* 1. Nome do Exercício + Tipo de Execução + Ações */}
-                <div className="flex items-start justify-between gap-2 border-b border-zinc-800/80 pb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
-                        isReps 
-                          ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' 
-                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                      }`}>
-                        {isReps ? <Target className="w-3 h-3" /> : <Play className="w-3 h-3 fill-current" />}
-                        {isReps ? 'Por Repetições' : 'Por Tempo (Isometria)'}
-                      </span>
-                    </div>
-
-                    <h3 className="text-base font-bold text-white mt-1 font-['Outfit']">{item.name}</h3>
-                  </div>
-
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => openEditModal(item)}
-                      className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
-                      title="Editar exercício"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTargetItem(item)}
-                      className="p-1.5 text-zinc-500 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors"
-                      title="Excluir exercício"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Informação / Instruções sobre o exercício */}
-                {item.focusNotes && (
-                  <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800/80 space-y-1">
-                    <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">
-                      Informação sobre o Exercício
-                    </span>
-                    <p className="text-xs text-zinc-300 leading-relaxed">
-                      {item.focusNotes}
-                    </p>
-                  </div>
-                )}
-
-                {/* 3. Histórico de Repetições / Tempo */}
-                <div className="space-y-2 pt-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                      <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Histórico de Evolução</span>
-                    </span>
-
-                    {maxVal > 0 && (
-                      <span className="text-[10px] font-bold font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
-                        Recorde: {isReps ? `${maxVal} reps` : `${maxVal}s`} 🏆
-                      </span>
-                    )}
-                  </div>
-
-                  {logs.length === 0 ? (
-                    <div className="bg-zinc-950/60 p-3 rounded-2xl border border-zinc-800/50 text-center">
-                      <p className="text-[11px] text-zinc-500">Nenhum histórico registrado para este exercício.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                      {logs.map((log, idx) => (
-                        <div
-                          key={log.id || idx}
-                          className="bg-zinc-950 px-3 py-2 rounded-xl border border-zinc-800 flex items-center justify-between text-xs font-mono"
-                        >
-                          <span className="text-zinc-400 text-[11px]">{formatDate(log.date)}</span>
-                          <span className="font-bold text-amber-400">
-                            {log.value} {log.numVal === maxVal && '🏆'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      )}
-
-      {/* CREATE / EDIT MODAL (Mantém apenas Nome, Tipo de Execução e Informações) */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto flex items-center justify-center p-4 overscroll-contain">
-          <form
-            onSubmit={handleSaveForm}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 sm:p-6 max-w-md w-full space-y-4 shadow-2xl my-auto max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overscroll-contain"
-          >
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-              <h3 className="text-base font-bold text-white font-['Outfit']">
-                {editingItem ? 'Editar Exercício da Biblioteca' : 'Criar Exercício Independente'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="text-zinc-400 hover:text-white font-bold text-sm p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* 1. Nome do Exercício */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Nome do Exercício</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs font-bold focus:border-amber-400 focus:outline-none"
-                placeholder="ex: Flexão de Braço no Solo"
+            return (
+              <ExerciseCatalogCard
+                key={item.id}
+                item={item}
+                logs={logs}
+                maxVal={maxVal}
+                formatDate={formatDate}
+                onEdit={() => openEditModal(item)}
+                onDelete={() => setDeleteTargetItem(item)}
               />
-            </div>
-
-            {/* 2. Tipo de Execução */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Tipo de Execução</label>
-              <select
-                value={executionType}
-                onChange={e => setExecutionType(e.target.value as ExerciseExecutionType)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
-              >
-                <option value="reps">Por Repetições (Contagem de reps)</option>
-                <option value="time">Por Tempo (Isometria / Sustentação)</option>
-              </select>
-            </div>
-
-            {/* 3. Informações / Instruções sobre o exercício */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Informação / Instruções sobre o Exercício</label>
-              <textarea
-                rows={3}
-                value={focusNotes}
-                onChange={e => setFocusNotes(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs focus:outline-none focus:border-amber-400"
-                placeholder="ex: Corpo alinhado, peito rente ao solo na descida e extensão total dos cotovelos."
-              />
-            </div>
-
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="w-1/2 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="w-1/2 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs hover:bg-amber-400 shadow-lg shadow-amber-500/20 font-black"
-              >
-                Salvar no Catálogo
-              </button>
-            </div>
-          </form>
+            );
+          })}
         </div>
       )}
+
+      {/* CREATE / EDIT MODAL */}
+      <ModalBase isOpen={showModal} onClose={handleCloseModal} maxWidth="md">
+        <form onSubmit={handleSaveForm} className="space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+            <h3 className="text-base font-bold text-white font-['Outfit']">
+              {editingItem ? 'Editar Exercício da Biblioteca' : 'Criar Exercício Independente'}
+            </h3>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={handleCloseModal}
+            >
+              ✕
+            </Button>
+          </div>
+
+          <FormField label="Nome do Exercício">
+            <Input
+              type="text"
+              required
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="ex: Flexão de Braço no Solo"
+            />
+          </FormField>
+
+          <FormField label="Tipo de Execução">
+            <Select
+              value={executionType}
+              onChange={e => setExecutionType(e.target.value as ExerciseExecutionType)}
+            >
+              <option value="reps">Por Repetições (Contagem de reps)</option>
+              <option value="time">Por Tempo (Isometria / Sustentação)</option>
+            </Select>
+          </FormField>
+
+          <FormField label="Informação / Instruções sobre o Exercício">
+            <textarea
+              rows={3}
+              value={focusNotes}
+              onChange={e => setFocusNotes(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs focus:outline-none focus:border-amber-400 resize-none"
+              placeholder="ex: Corpo alinhado, peito rente ao solo na descida e extensão total dos cotovelos."
+            />
+          </FormField>
+
+          <div className="grid grid-cols-2 gap-2 pt-2">
+            <Button type="button" variant="zinc" size="md" fullWidth onClick={() => setShowModal(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="amber" size="md" fullWidth>
+              Salvar no Catálogo
+            </Button>
+          </div>
+        </form>
+      </ModalBase>
 
       {/* Delete Confirm Modal */}
       <ConfirmModal

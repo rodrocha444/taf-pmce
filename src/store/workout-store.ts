@@ -110,6 +110,12 @@ interface WorkoutStore {
   addRunningLog: (log: Omit<RunningLog, 'id' | 'paceSecPerKm' | 'speedKmH'>) => void;
   deleteRunningLog: (id: string) => void;
   clearRunningHistory: () => void;
+  showCreateWorkoutModal: boolean;
+  setShowCreateWorkoutModal: (open: boolean) => void;
+  showCreateExerciseModal: boolean;
+  setShowCreateExerciseModal: (open: boolean) => void;
+  showManualHistoryModal: boolean;
+  setShowManualHistoryModal: (open: boolean) => void;
 }
 
 export const useWorkoutStore = create<WorkoutStore>()(
@@ -130,6 +136,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
       runningWorkouts: [],
       runningHistory: [],
       exerciseCatalog: [],
+      showCreateWorkoutModal: false,
+      setShowCreateWorkoutModal: (open) => set({ showCreateWorkoutModal: open }),
+
+      showCreateExerciseModal: false,
+      setShowCreateExerciseModal: (open) => set({ showCreateExerciseModal: open }),
+
+      showManualHistoryModal: false,
+      setShowManualHistoryModal: (open) => set({ showManualHistoryModal: open }),
 
       addCatalogExercise: (itemData) => {
         const newItem: ExerciseCatalogItem = {
@@ -149,7 +163,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       deleteCatalogExercise: (id) => {
         set(state => ({
-          exerciseCatalog: (state.exerciseCatalog || []).filter(c => c.id !== id || c.isDefault)
+          exerciseCatalog: (state.exerciseCatalog || []).filter(c => c.id !== id)
         }));
         try {
           db.exerciseCatalog.delete(id).catch(err => console.warn('Dexie error:', err));
@@ -929,7 +943,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       deleteRunningWorkout: (id) => {
         set(state => ({
-          runningWorkouts: (state.runningWorkouts || []).filter(w => w.id !== id || w.isDefault)
+          runningWorkouts: (state.runningWorkouts || []).filter(w => w.id !== id)
         }));
       },
 
