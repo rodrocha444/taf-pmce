@@ -22,6 +22,21 @@ export interface Workout {
   updatedAt: string;
 }
 
+export interface ExerciseEvolutionLog {
+  id: string;
+  workoutId: string;
+  exerciseId: string;
+  exerciseName: string;
+  category?: 'barra' | 'abdominal' | 'flexao' | 'perna' | 'isometria' | 'outros';
+  executionType?: 'reps' | 'time';
+  targetReps?: number;
+  completedReps?: number;       // Repetições reais realizadas
+  workDurationSeconds: number; // Tempo de execução previsto
+  realWorkSeconds?: number;     // Tempo real de execução gasto
+  status: 'completed' | 'skipped';
+  timestamp: string;
+}
+
 export interface WorkoutSessionLog {
   id: string;
   workoutId: string;
@@ -34,6 +49,7 @@ export interface WorkoutSessionLog {
   totalExercisesCount: number;
   status: 'completed' | 'cancelled';
   exerciseStatuses?: Record<number, 'completed' | 'skipped'>;
+  exerciseLogs?: ExerciseEvolutionLog[]; // Registro detalhado da evolução dos exercícios
 }
 
 export interface UserSettings {

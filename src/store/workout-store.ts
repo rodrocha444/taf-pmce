@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import confetti from 'canvas-confetti';
-import type { Workout, ActiveSession, WorkoutSessionLog, UserSettings, Exercise, ExerciseExecutionType, RunningWorkout, RunningLog } from '../types';
+import type { Workout, ActiveSession, WorkoutSessionLog, UserSettings, Exercise, ExerciseExecutionType, RunningWorkout, RunningLog, ExerciseEvolutionLog } from '../types';
 import { DEFAULT_TAF_WORKOUT } from '../data/default-workout';
 import { audioEngine } from '../utils/audio';
 import { speechEngine } from '../utils/speech';
 import { wakeLockManager } from '../utils/wake-lock';
 import { calculatePaceSecPerKm, calculateSpeedKmH } from '../utils/formatters';
 import { indexedDBStorage } from '../services/db-storage';
+import { db } from '../services/db';
 
 export const DEFAULT_RUNNING_WORKOUTS: RunningWorkout[] = [
   {
@@ -85,6 +86,7 @@ interface WorkoutStore {
   finishWorkout: (status?: 'completed' | 'cancelled') => void;
   deleteHistoryLog: (id: string) => void;
   clearHistory: () => void;
+  addManualHistoryLog: (log: Omit<WorkoutSessionLog, 'id'>) => void;
   saveWorkout: (workout: Workout) => void;
   deleteWorkout: (id: string) => void;
   resetDefaultWorkout: () => void;
@@ -602,6 +604,35 @@ export const useWorkoutStore = create<WorkoutStore>()(
             ? Math.max(0, Math.floor((Date.now() - session.startTimestamp) / 1000))
             : session.totalTimeElapsed;
 
+          // Generate detailed evolution logs for each exercise
+          const exerciseLogs: ExerciseEvolutionLog[] = workout.exercises.map((ex, idx) => {
+            const exStatus = statuses[idx] || (idx < session.currentExerciseIndex ? 'completed' : 'skipped');
+            const isCompleted = exStatus === 'completed';
+            const isReps = ex.executionType === 'reps' || (ex.targetReps !== undefined && ex.targetReps > 0);
+
+            return {
+              id: `ex-log-${Date.now()}-${idx}`,
+              workoutId: workout.id,
+              exerciseId: ex.id,
+              exerciseName: ex.name,
+              category: ex.category || 'outros',
+              executionType: isReps ? 'reps' : 'time',
+              targetReps: ex.targetReps,
+              completedReps: isCompleted && isReps ? (ex.targetReps || 10) : (isCompleted ? 0 : 0),
+              workDurationSeconds: ex.workDurationSeconds || 60,
+              realWorkSeconds: isCompleted ? (ex.workDurationSeconds || 60) : 0,
+              status: exStatus,
+              timestamp: new Date().toISOString()
+            };
+          });
+
+          // Save into IndexedDB exerciseEvolution table
+          try {
+            db.exerciseEvolution.bulkPut(exerciseLogs).catch(err => console.warn('Dexie exerciseEvolution error:', err));
+          } catch (e) {
+            console.warn('db error:', e);
+          }
+
           const log: WorkoutSessionLog = {
             id: `log-${Date.now()}`,
             workoutId: workout.id,
@@ -613,7 +644,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
             exercisesSkippedCount: skippedCount,
             totalExercisesCount: workout.exercises.length,
             status,
-            exerciseStatuses: statuses
+            exerciseStatuses: statuses,
+            exerciseLogs
           };
 
           set(state => ({
@@ -633,6 +665,25 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       clearHistory: () => {
         set({ history: [] });
+      },
+
+      addManualHistoryLog: (logData) => {
+        const newLog: WorkoutSessionLog = {
+          ...logData,
+          id: `log-${Date.now()}`
+        };
+
+        if (newLog.exerciseLogs && newLog.exerciseLogs.length > 0) {
+          try {
+            db.exerciseEvolution.bulkPut(newLog.exerciseLogs).catch(err => console.warn('Dexie exerciseEvolution error:', err));
+          } catch (e) {
+            console.warn('db error:', e);
+          }
+        }
+
+        set(state => ({
+          history: [newLog, ...(state.history || [])]
+        }));
       },
 
       saveWorkout: (updatedWorkout) => {
