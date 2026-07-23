@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  Zap, 
   Plus, 
   Trash2, 
   Calculator, 
@@ -99,64 +98,54 @@ export const RunningView: React.FC = () => {
   const calcSpeed = calculateSpeedKmH(calcDistNum, calcTotalSecs);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-5 space-y-5 pb-28">
-      {/* Header & Title */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-500 text-zinc-950 flex items-center justify-center font-black shadow-lg shadow-amber-500/20">
-            <Zap className="w-5 h-5 fill-current" />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-white font-['Outfit']">Treino de Corrida</h1>
-            <p className="text-xs text-zinc-400">Pace, quilometragem, tempo e histórico TAF</p>
-          </div>
+    <div className="max-w-4xl mx-auto px-4 py-5 space-y-4 pb-28">
+      {/* Top Action & Tab Selectors */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex-1 grid grid-cols-3 gap-1 p-1 bg-zinc-900 border border-zinc-800/80 rounded-2xl text-xs font-bold">
+          <button
+            onClick={() => setActiveTab('workouts')}
+            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'workouts'
+                ? 'bg-amber-500 text-zinc-950 font-black shadow-md'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Gauge className="w-4 h-4" />
+            <span>Metas</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'history'
+                ? 'bg-amber-500 text-zinc-950 font-black shadow-md'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Award className="w-4 h-4" />
+            <span>Histórico</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('calculator')}
+            className={`py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'calculator'
+                ? 'bg-amber-500 text-zinc-950 font-black shadow-md'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            <Calculator className="w-4 h-4" />
+            <span>Pace</span>
+          </button>
         </div>
 
         <button
           onClick={() => setShowLogModal(true)}
-          className="px-3.5 py-2 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs shadow-lg shadow-amber-500/20 hover:bg-amber-400 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+          className="p-2.5 sm:px-3.5 sm:py-2.5 rounded-2xl bg-amber-500 text-zinc-950 font-bold text-xs shadow-lg shadow-amber-500/20 hover:bg-amber-400 active:scale-95 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+          title="Registrar Corrida"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Registrar Corrida</span>
-        </button>
-      </div>
-
-      {/* Tab Selectors */}
-      <div className="grid grid-cols-3 gap-1.5 p-1 bg-zinc-900 border border-zinc-800/80 rounded-2xl text-xs font-bold">
-        <button
-          onClick={() => setActiveTab('workouts')}
-          className={`py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'workouts'
-              ? 'bg-amber-500 text-zinc-950 font-black shadow-md'
-              : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          <Gauge className="w-4 h-4" />
-          <span>Treinos & Metas</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'history'
-              ? 'bg-amber-500 text-zinc-950 font-black shadow-md'
-              : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          <Award className="w-4 h-4" />
-          <span>Histórico ({runningHistory.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('calculator')}
-          className={`py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-            activeTab === 'calculator'
-              ? 'bg-amber-500 text-zinc-950 font-black shadow-md'
-              : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          <Calculator className="w-4 h-4" />
-          <span>Calculadora Pace</span>
+          <span className="hidden sm:inline">Registrar</span>
         </button>
       </div>
 
