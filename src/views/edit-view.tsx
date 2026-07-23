@@ -137,6 +137,17 @@ export const EditView: React.FC = () => {
     closeModal();
   };
 
+  React.useEffect(() => {
+    if (isAdding || editingExercise) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isAdding, editingExercise]);
+
   const totalDuration = getTotalWorkoutDuration(workout.exercises);
 
   return (
@@ -283,10 +294,10 @@ export const EditView: React.FC = () => {
 
       {/* Form Modal (Add / Edit Exercise) */}
       {(isAdding || editingExercise) && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto flex items-center justify-center p-4 overscroll-contain">
           <form
             onSubmit={handleSaveModal}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl"
+            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 sm:p-6 max-w-md w-full space-y-4 shadow-2xl my-auto max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overscroll-contain"
           >
             <h3 className="text-lg font-bold text-white font-['Outfit']">
               {isAdding ? 'Adicionar Novo Exercício' : 'Editar Exercício'}

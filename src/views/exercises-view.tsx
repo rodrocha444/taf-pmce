@@ -109,6 +109,17 @@ export const ExercisesView: React.FC = () => {
     return { logs, maxVal };
   };
 
+  React.useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showModal]);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
       {/* Top Header */}
@@ -239,10 +250,10 @@ export const ExercisesView: React.FC = () => {
 
       {/* CREATE / EDIT MODAL (Mantém apenas Nome, Tipo de Execução e Informações) */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm overflow-y-auto flex items-center justify-center p-4 overscroll-contain">
           <form
             onSubmit={handleSaveForm}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 max-w-md w-full space-y-4 shadow-2xl"
+            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 sm:p-6 max-w-md w-full space-y-4 shadow-2xl my-auto max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overscroll-contain"
           >
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
               <h3 className="text-base font-bold text-white font-['Outfit']">
