@@ -97,6 +97,7 @@ interface WorkoutStore {
   saveWorkout: (workout: Workout) => void;
   deleteWorkout: (id: string) => void;
   resetDefaultWorkout: () => void;
+  resetAllDataToDefaults: () => void;
   updateSettings: (settings: Partial<UserSettings>) => void;
   addExerciseToWorkout: (workoutId: string, exercise: Omit<Exercise, 'id' | 'durationSeconds'>) => void;
   updateExerciseInWorkout: (workoutId: string, exercise: Exercise) => void;
@@ -765,6 +766,21 @@ export const useWorkoutStore = create<WorkoutStore>()(
         set(state => ({
           workouts: state.workouts.map(w => w.id === DEFAULT_TAF_WORKOUT.id ? { ...DEFAULT_TAF_WORKOUT, updatedAt: new Date().toISOString() } : w)
         }));
+      },
+
+      resetAllDataToDefaults: () => {
+        set({
+          workouts: [DEFAULT_TAF_WORKOUT],
+          activeWorkoutId: DEFAULT_TAF_WORKOUT.id,
+          exerciseCatalog: DEFAULT_EXERCISE_CATALOG,
+          activeSession: null
+        });
+        try {
+          db.workouts.clear().then(() => db.workouts.put(DEFAULT_TAF_WORKOUT)).catch(err => console.warn('Dexie error:', err));
+          db.exerciseCatalog.clear().then(() => db.exerciseCatalog.bulkPut(DEFAULT_EXERCISE_CATALOG)).catch(err => console.warn('Dexie error:', err));
+        } catch (e) {
+          console.warn('db clear error:', e);
+        }
       },
 
       updateSettings: (newSettings) => {

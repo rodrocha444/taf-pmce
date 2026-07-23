@@ -3,173 +3,173 @@ import type { Workout } from '../types';
 export const DEFAULT_TAF_WORKOUT: Workout = {
   id: 'taf-pmce-default',
   title: 'Treino TAF PMCE (30 Minutos)',
-  description: 'Série progressiva de condicionamento físico com 15 exercícios em blocos de 2 minutos cada, divididos entre 1 min de Execução e 1 min de Descanso.',
+  description: 'Série progressiva de condicionamento físico baseada na biblioteca de exercícios TAF PMCE com 15 séries em blocos de 2 minutos cada.',
   isDefault: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   exercises: [
     {
       id: 'ex-1',
-      name: 'Barra Fixa Pronada',
-      focusNotes: 'Foco TAF - Pegada em pronação, execução com amplitude total',
+      catalogId: 'cat-barra-fixa-dinamica',
+      name: 'Barra Fixa Dinâmica (Masculino)',
+      focusNotes: 'Queixo acima da barra na subida, extensão total na descida',
       executionType: 'reps',
       targetReps: 6,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'barra'
+      durationSeconds: 120
     },
     {
       id: 'ex-2',
-      name: 'Abdominal Remador',
-      focusNotes: 'Foco TAF - Série 1 (Extensão completa e flexão alinhada)',
+      catalogId: 'cat-abdominal-remador',
+      name: 'Abdominal Remador (1 Minuto)',
+      focusNotes: 'Abraçar os joelhos na flexão e estender braços/pernas na descida',
       executionType: 'reps',
       targetReps: 30,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'abdominal'
+      durationSeconds: 120
     },
     {
       id: 'ex-3',
-      name: 'Flexão Militar no Colchonete',
-      focusNotes: 'Cotovelos para trás, tronco paralelo ao solo',
+      catalogId: 'cat-flexao-braco',
+      name: 'Flexão de Braço no Solo',
+      focusNotes: 'Corpo alinhado, peito rente ao solo',
       executionType: 'reps',
       targetReps: 20,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'flexao'
+      durationSeconds: 120
     },
     {
       id: 'ex-4',
+      catalogId: 'cat-agachamento',
       name: 'Agachamento Livre',
-      focusNotes: 'Postura ereta, joelhos em direção às pontas dos pés',
+      focusNotes: 'Coluna ereta, joelhos a 90 graus',
       executionType: 'reps',
       targetReps: 30,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'perna'
+      durationSeconds: 120
     },
     {
       id: 'ex-5',
-      name: 'Barra Fixa Pronada',
+      catalogId: 'cat-barra-fixa-dinamica',
+      name: 'Barra Fixa Dinâmica (Masculino)',
       focusNotes: 'Manter velocidade e cadência constante',
       executionType: 'reps',
       targetReps: 5,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'barra'
+      durationSeconds: 120
     },
     {
       id: 'ex-6',
-      name: 'Abdominal Supra',
-      focusNotes: 'Pés apoiados no chão/colchonete - sem atrito no cóccix',
+      catalogId: 'cat-abdominal-remador',
+      name: 'Abdominal Remador (1 Minuto)',
+      focusNotes: 'Ritmo constante sem pausar no chão',
       executionType: 'reps',
       targetReps: 35,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'abdominal'
+      durationSeconds: 120
     },
     {
       id: 'ex-7',
-      name: 'Flexão Pike',
-      focusNotes: 'Foco nos ombros e tríceps com estabilização do core',
+      catalogId: 'cat-flexao-braco',
+      name: 'Flexão de Braço no Solo',
+      focusNotes: 'Tronco paralelo ao solo sem curvar a lombar',
       executionType: 'reps',
       targetReps: 15,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'flexao'
+      durationSeconds: 120
     },
     {
       id: 'ex-8',
-      name: 'Ponte de Glúteos no Colchonete',
-      focusNotes: 'Prevenção lombar - contração dos glúteos no topo',
-      executionType: 'reps',
-      targetReps: 25,
+      catalogId: 'cat-shuttle-run',
+      name: 'Corrida de Ir e Vir (Shuttle Run 9,14m)',
+      focusNotes: 'Pegar o primeiro bloco, retornar e pegar o segundo',
+      executionType: 'time',
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'isometria'
+      durationSeconds: 120
     },
     {
       id: 'ex-9',
-      name: 'Barra Fixa Pronada',
-      focusNotes: 'Use a band se necessário para manter as repetições',
+      catalogId: 'cat-barra-fixa-dinamica',
+      name: 'Barra Fixa Dinâmica (Masculino)',
+      focusNotes: 'Manter a força na subida',
       executionType: 'reps',
       targetReps: 4,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'barra'
+      durationSeconds: 120
     },
     {
       id: 'ex-10',
-      name: 'Abdominal Remador',
-      focusNotes: 'Foco TAF - Série 2 (Ritmo constante)',
+      catalogId: 'cat-abdominal-remador',
+      name: 'Abdominal Remador (1 Minuto)',
+      focusNotes: 'Série 3 (Resistência máxima)',
       executionType: 'reps',
       targetReps: 30,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'abdominal'
+      durationSeconds: 120
     },
     {
       id: 'ex-11',
-      name: 'Flexão Militar no Colchonete',
-      focusNotes: 'Manter tronco firme, respiração controlada',
+      catalogId: 'cat-flexao-braco',
+      name: 'Flexão de Braço no Solo',
+      focusNotes: 'Manter apoio firme das mãos',
       executionType: 'reps',
       targetReps: 18,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'flexao'
+      durationSeconds: 120
     },
     {
       id: 'ex-12',
-      name: 'Afundo Alternado',
-      focusNotes: 'Controle na descida, joelho não passa da ponta do pé',
-      executionType: 'reps',
-      targetReps: 24,
-      workDurationSeconds: 60,
-      restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'perna'
-    },
-    {
-      id: 'ex-13',
-      name: 'Dead Hang (Suspensão na Barra)',
-      focusNotes: 'Foco na pegada, ombros encaixados para resistência',
-      executionType: 'time',
-      workDurationSeconds: 60,
-      restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'barra'
-    },
-    {
-      id: 'ex-14',
-      name: 'Abdominal Infra',
-      focusNotes: 'Deitado, elevação de pernas com as mãos sob o quadril',
+      catalogId: 'cat-agachamento',
+      name: 'Agachamento Livre',
+      focusNotes: 'Respirar fundo a cada repetição',
       executionType: 'reps',
       targetReps: 25,
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'abdominal'
+      durationSeconds: 120
     },
     {
-      id: 'ex-15',
-      name: 'Prancha Isométrica no Colchonete',
-      focusNotes: 'Sustentação final - abdômen e glúteos bem travados',
+      id: 'ex-13',
+      catalogId: 'cat-isometria-barra',
+      name: 'Isometria na Barra (Feminino)',
+      focusNotes: 'Queixo mantido acima da barra sem apoiar',
       executionType: 'time',
       workDurationSeconds: 60,
       restDurationSeconds: 60,
-      durationSeconds: 120,
-      category: 'isometria'
+      durationSeconds: 120
+    },
+    {
+      id: 'ex-14',
+      catalogId: 'cat-abdominal-remador',
+      name: 'Abdominal Remador (1 Minuto)',
+      focusNotes: 'Última série de abdominais',
+      executionType: 'reps',
+      targetReps: 25,
+      workDurationSeconds: 60,
+      restDurationSeconds: 60,
+      durationSeconds: 120
+    },
+    {
+      id: 'ex-15',
+      catalogId: 'cat-flexao-braco',
+      name: 'Flexão de Braço no Solo',
+      focusNotes: 'Finalização de força - sustentação total',
+      executionType: 'reps',
+      targetReps: 15,
+      workDurationSeconds: 60,
+      restDurationSeconds: 60,
+      durationSeconds: 120
     }
   ]
 };
