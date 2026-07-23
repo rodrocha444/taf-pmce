@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Exercise } from '../types';
 import { formatSecondsToMMSS } from '../utils/formatters';
-import { Flame, ShieldAlert, Activity, BicepsFlexed, Play, Coffee, Target } from 'lucide-react';
+import { Play, Coffee, Target } from 'lucide-react';
 
 interface ExerciseCardProps {
   exercise: Exercise;
@@ -34,23 +34,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
   isFirst = false,
   isLast = false,
 }) => {
-  const getCategoryIcon = (category?: string) => {
-    switch (category) {
-      case 'barra':
-        return <BicepsFlexed className="w-4 h-4 text-amber-400" />;
-      case 'abdominal':
-        return <Flame className="w-4 h-4 text-rose-400" />;
-      case 'flexao':
-        return <Activity className="w-4 h-4 text-cyan-400" />;
-      case 'perna':
-        return <Flame className="w-4 h-4 text-emerald-400" />;
-      case 'isometria':
-        return <ShieldAlert className="w-4 h-4 text-purple-400" />;
-      default:
-        return <Activity className="w-4 h-4 text-zinc-400" />;
-    }
-  };
-
   const workSecs = exercise.workDurationSeconds || 60;
   const restSecs = exercise.restDurationSeconds || 60;
 
@@ -115,12 +98,6 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
             <Coffee className="w-3 h-3 text-cyan-400" />
             <span>{formatSecondsToMMSS(restSecs)}</span>
           </div>
-
-          {exercise.category && (
-            <div className="hidden xs:flex items-center gap-1 text-[11px] font-medium text-zinc-400 capitalize pl-1">
-              {getCategoryIcon(exercise.category)}
-            </div>
-          )}
         </div>
       </div>
 

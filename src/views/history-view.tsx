@@ -104,7 +104,6 @@ export const HistoryView: React.FC = () => {
         workoutId: selectedWorkout.id,
         exerciseId: ex.id,
         exerciseName: ex.name,
-        category: ex.category || 'outros',
         executionType: isReps ? 'reps' : 'time',
         targetReps: ex.targetReps,
         completedReps: state.completed && isReps ? (parseInt(state.reps) || ex.targetReps || 10) : 0,
@@ -292,7 +291,6 @@ export const HistoryView: React.FC = () => {
                           >
                             <div>
                               <span className="text-white font-bold block font-sans text-xs">{exLog.exerciseName}</span>
-                              <span className="text-[10px] text-zinc-400 uppercase">{exLog.category}</span>
                             </div>
 
                             <div className="text-right">

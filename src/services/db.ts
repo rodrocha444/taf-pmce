@@ -17,8 +17,8 @@ export class TafPmceDatabase extends Dexie {
     this.version(3).stores({
       workouts: 'id, title, active, createdAt',
       history: 'id, workoutId, status, timestamp',
-      exerciseEvolution: 'id, exerciseId, exerciseName, category, timestamp',
-      exerciseCatalog: 'id, name, category, executionType',
+      exerciseEvolution: 'id, exerciseId, exerciseName, timestamp',
+      exerciseCatalog: 'id, name, executionType',
       runningWorkouts: 'id, title, targetMode, createdAt',
       runningHistory: 'id, workoutTitle, date, distanceKm, durationSeconds',
       activeSessionState: 'id'

@@ -3,7 +3,6 @@ export type ExerciseExecutionType = 'reps' | 'time';
 export interface ExerciseCatalogItem {
   id: string;
   name: string;
-  category?: string;
   executionType: ExerciseExecutionType;
   defaultTargetReps?: number;
   defaultWorkDurationSeconds: number;
@@ -21,7 +20,6 @@ export interface Exercise {
   workDurationSeconds: number; // default 60 (1 min execution)
   restDurationSeconds: number; // default 60 (1 min rest)
   durationSeconds: number;     // total = work + rest (120s / 2 mins)
-  category?: string;
   catalogId?: string;          // referência ao exercício da biblioteca
 }
 
@@ -40,7 +38,6 @@ export interface ExerciseEvolutionLog {
   workoutId: string;
   exerciseId: string;
   exerciseName: string;
-  category?: string;
   executionType?: 'reps' | 'time';
   targetReps?: number;
   completedReps?: number;       // Repetições reais realizadas

@@ -31,7 +31,6 @@ export const EditView: React.FC = () => {
   const [workSeconds, setWorkSeconds] = useState<number>(0);
   const [restMinutes, setRestMinutes] = useState<number>(1);
   const [restSeconds, setRestSeconds] = useState<number>(0);
-  const [formCategory, setFormCategory] = useState<Exercise['category']>('outros');
 
   const handleSelectCatalogItem = (catId: string) => {
     setSelectedCatalogId(catId);
@@ -42,7 +41,6 @@ export const EditView: React.FC = () => {
     setFormNotes(catItem.focusNotes || '');
     setFormExecutionType(catItem.executionType);
     setFormTargetReps(catItem.defaultTargetReps ?? 10);
-    setFormCategory(catItem.category);
 
     const workTotal = catItem.defaultWorkDurationSeconds || 60;
     setWorkMinutes(Math.floor(workTotal / 60));
@@ -64,7 +62,6 @@ export const EditView: React.FC = () => {
     setWorkSeconds(0);
     setRestMinutes(1);
     setRestSeconds(0);
-    setFormCategory('outros');
     setIsAdding(true);
 
     if (exerciseCatalog.length > 0) {
@@ -89,7 +86,6 @@ export const EditView: React.FC = () => {
     setRestMinutes(Math.floor(restTotal / 60));
     setRestSeconds(restTotal % 60);
 
-    setFormCategory(exercise.category || 'outros');
     setIsAdding(false);
   };
 
@@ -114,8 +110,7 @@ export const EditView: React.FC = () => {
         executionType: formExecutionType,
         targetReps: repsVal,
         workDurationSeconds: totalWorkSecs,
-        restDurationSeconds: totalRestSecs,
-        category: formCategory
+        restDurationSeconds: totalRestSecs
       });
     } else if (editingExercise) {
       updateExerciseInWorkout(workout.id, {
@@ -126,8 +121,7 @@ export const EditView: React.FC = () => {
         targetReps: repsVal,
         workDurationSeconds: totalWorkSecs,
         restDurationSeconds: totalRestSecs,
-        durationSeconds: totalWorkSecs + totalRestSecs,
-        category: formCategory
+        durationSeconds: totalWorkSecs + totalRestSecs
       });
     }
 
@@ -457,21 +451,7 @@ export const EditView: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-zinc-300 font-semibold mb-1">Categoria</label>
-                <select
-                  value={formCategory}
-                  onChange={e => setFormCategory(e.target.value as Exercise['category'])}
-                  className="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:border-amber-500 capitalize"
-                >
-                  <option value="barra">Barra Fixa</option>
-                  <option value="abdominal">Abdominal</option>
-                  <option value="flexao">Flexão</option>
-                  <option value="perna">Pernas / Agachamento</option>
-                  <option value="isometria">Isometria / Prancha</option>
-                  <option value="outros">Outros</option>
-                </select>
-              </div>
+
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-2">
