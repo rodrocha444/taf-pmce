@@ -5,42 +5,37 @@ import {
   Trash2, 
   Edit2, 
   ArrowLeft, 
-  BookOpen
+  BookOpen,
+  Target,
+  Play,
+  TrendingUp
 } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 import type { ExerciseCatalogItem, ExerciseExecutionType } from '../types';
 import { ConfirmModal } from '../components/confirm-modal';
+import { formatDate } from '../utils/formatters';
 
 export const ExercisesView: React.FC = () => {
   const navigate = useNavigate();
   const exerciseCatalog = useWorkoutStore(state => state.exerciseCatalog || []);
   const addCatalogExercise = useWorkoutStore(state => state.addCatalogExercise);
   const deleteCatalogExercise = useWorkoutStore(state => state.deleteCatalogExercise);
+  const history = useWorkoutStore(state => state.history || []);
 
   // Modals state
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingItem, setEditingItem] = useState<ExerciseCatalogItem | null>(null);
   const [deleteTargetItem, setDeleteTargetItem] = useState<ExerciseCatalogItem | null>(null);
 
-  // Form State
+  // Form State (Nome, Tipo de Execução, Informação sobre o exercício)
   const [name, setName] = useState('');
   const [executionType, setExecutionType] = useState<ExerciseExecutionType>('reps');
-  const [defaultTargetReps, setDefaultTargetReps] = useState<number | ''>(20);
-  const [workMins, setWorkMins] = useState(1);
-  const [workSecs, setWorkSecs] = useState(0);
-  const [restMins, setRestMins] = useState(1);
-  const [restSecs, setRestSecs] = useState(0);
   const [focusNotes, setFocusNotes] = useState('');
 
   const openCreateModal = () => {
     setEditingItem(null);
     setName('');
     setExecutionType('reps');
-    setDefaultTargetReps(20);
-    setWorkMins(1);
-    setWorkSecs(0);
-    setRestMins(1);
-    setRestSecs(0);
     setFocusNotes('');
     setShowModal(true);
   };
@@ -49,16 +44,6 @@ export const ExercisesView: React.FC = () => {
     setEditingItem(item);
     setName(item.name);
     setExecutionType(item.executionType);
-    setDefaultTargetReps(item.defaultTargetReps ?? 20);
-
-    const workTotal = item.defaultWorkDurationSeconds || 60;
-    setWorkMins(Math.floor(workTotal / 60));
-    setWorkSecs(workTotal % 60);
-
-    const restTotal = item.defaultRestDurationSeconds || 60;
-    setRestMins(Math.floor(restTotal / 60));
-    setRestSecs(restTotal % 60);
-
     setFocusNotes(item.focusNotes || '');
     setShowModal(true);
   };
@@ -67,22 +52,13 @@ export const ExercisesView: React.FC = () => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const totalWorkSecs = Math.max(5, workMins * 60 + workSecs);
-    const totalRestSecs = Math.max(0, restMins * 60 + restSecs);
-    const isReps = executionType === 'reps';
-    const repsVal = isReps && typeof defaultTargetReps === 'number' ? Math.max(1, defaultTargetReps) : undefined;
-
     if (editingItem) {
-      // update item in catalog state
       useWorkoutStore.setState(state => ({
         exerciseCatalog: (state.exerciseCatalog || []).map(c => 
           c.id === editingItem.id ? {
             ...c,
             name: name.trim(),
             executionType,
-            defaultTargetReps: repsVal,
-            defaultWorkDurationSeconds: totalWorkSecs,
-            defaultRestDurationSeconds: totalRestSecs,
             focusNotes: focusNotes.trim()
           } : c
         )
@@ -91,9 +67,8 @@ export const ExercisesView: React.FC = () => {
       addCatalogExercise({
         name: name.trim(),
         executionType,
-        defaultTargetReps: repsVal,
-        defaultWorkDurationSeconds: totalWorkSecs,
-        defaultRestDurationSeconds: totalRestSecs,
+        defaultWorkDurationSeconds: 60,
+        defaultRestDurationSeconds: 60,
         focusNotes: focusNotes.trim()
       });
     }
@@ -106,6 +81,32 @@ export const ExercisesView: React.FC = () => {
       deleteCatalogExercise(deleteTargetItem.id);
       setDeleteTargetItem(null);
     }
+  };
+
+  // Helper to fetch repetition/time history for an exercise
+  const getExerciseLogs = (exName: string) => {
+    const logs: { id: string; date: string; value: string; numVal: number }[] = [];
+
+    history.forEach(session => {
+      if (session.exerciseLogs) {
+        session.exerciseLogs.forEach(exLog => {
+          if (exLog.exerciseName.trim().toLowerCase() === exName.trim().toLowerCase()) {
+            const isReps = exLog.executionType === 'reps' || (exLog.completedReps && exLog.completedReps > 0);
+            const valNum = isReps ? (exLog.completedReps || 0) : (exLog.realWorkSeconds || exLog.workDurationSeconds || 0);
+
+            logs.push({
+              id: exLog.id,
+              date: session.date,
+              value: isReps ? `${valNum} reps` : `${valNum}s`,
+              numVal: valNum
+            });
+          }
+        });
+      }
+    });
+
+    const maxVal = logs.length > 0 ? Math.max(...logs.map(l => l.numVal)) : 0;
+    return { logs, maxVal };
   };
 
   return (
@@ -134,19 +135,34 @@ export const ExercisesView: React.FC = () => {
         </button>
       </div>
 
-      {/* Exercises List */}
+      {/* Exercises List Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {exerciseCatalog.map(item => {
-          const isReps = item.executionType === 'reps' || (item.defaultTargetReps !== undefined && item.defaultTargetReps > 0);
+          const { logs, maxVal } = getExerciseLogs(item.name);
+          const isReps = item.executionType === 'reps';
 
           return (
             <div
               key={item.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-3.5 hover:border-zinc-700 transition-all flex flex-col justify-between"
+              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-4 hover:border-zinc-700 transition-all flex flex-col justify-between"
             >
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-base font-bold text-white font-['Outfit']">{item.name}</h3>
+              <div className="space-y-3">
+                {/* 1. Nome do Exercício + Tipo de Execução + Ações */}
+                <div className="flex items-start justify-between gap-2 border-b border-zinc-800/80 pb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                        isReps 
+                          ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' 
+                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                      }`}>
+                        {isReps ? <Target className="w-3 h-3" /> : <Play className="w-3 h-3 fill-current" />}
+                        {isReps ? 'Por Repetições' : 'Por Tempo (Isometria)'}
+                      </span>
+                    </div>
+
+                    <h3 className="text-base font-bold text-white mt-1 font-['Outfit']">{item.name}</h3>
+                  </div>
 
                   <div className="flex items-center gap-1 shrink-0">
                     <button
@@ -168,43 +184,65 @@ export const ExercisesView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Properties Badge */}
-                <div className="grid grid-cols-3 gap-2 bg-zinc-950 p-2.5 rounded-2xl border border-zinc-800/80 text-center font-mono text-xs">
-                  <div>
-                    <span className="text-[9px] text-zinc-500 font-sans uppercase block">Execução</span>
-                    <strong className="text-amber-400 font-bold">
-                      {isReps ? `${item.defaultTargetReps || 10} reps` : `${item.defaultWorkDurationSeconds}s`}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span className="text-[9px] text-zinc-500 font-sans uppercase block">Tempo</span>
-                    <strong className="text-white font-bold">{item.defaultWorkDurationSeconds}s</strong>
-                  </div>
-
-                  <div>
-                    <span className="text-[9px] text-zinc-500 font-sans uppercase block">Descanso</span>
-                    <strong className="text-cyan-400 font-bold">{item.defaultRestDurationSeconds}s</strong>
-                  </div>
-                </div>
-
+                {/* 2. Informação / Instruções sobre o exercício */}
                 {item.focusNotes && (
-                  <p className="text-xs text-zinc-400 bg-zinc-950/40 p-2.5 rounded-xl border border-zinc-800/40">
-                    💡 {item.focusNotes}
-                  </p>
+                  <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800/80 space-y-1">
+                    <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider block">
+                      Informação sobre o Exercício
+                    </span>
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      {item.focusNotes}
+                    </p>
+                  </div>
                 )}
+
+                {/* 3. Histórico de Repetições / Tempo */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                      <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Histórico de Evolução</span>
+                    </span>
+
+                    {maxVal > 0 && (
+                      <span className="text-[10px] font-bold font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                        Recorde: {isReps ? `${maxVal} reps` : `${maxVal}s`} 🏆
+                      </span>
+                    )}
+                  </div>
+
+                  {logs.length === 0 ? (
+                    <div className="bg-zinc-950/60 p-3 rounded-2xl border border-zinc-800/50 text-center">
+                      <p className="text-[11px] text-zinc-500">Nenhum histórico registrado para este exercício.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                      {logs.map((log, idx) => (
+                        <div
+                          key={log.id || idx}
+                          className="bg-zinc-950 px-3 py-2 rounded-xl border border-zinc-800 flex items-center justify-between text-xs font-mono"
+                        >
+                          <span className="text-zinc-400 text-[11px]">{formatDate(log.date)}</span>
+                          <span className="font-bold text-amber-400">
+                            {log.value} {log.numVal === maxVal && '🏆'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* CREATE / EDIT MODAL */}
+      {/* CREATE / EDIT MODAL (Mantém apenas Nome, Tipo de Execução e Informações) */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <form
             onSubmit={handleSaveForm}
-            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 max-w-md w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 max-w-md w-full space-y-4 shadow-2xl"
           >
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
               <h3 className="text-base font-bold text-white font-['Outfit']">
@@ -219,6 +257,7 @@ export const ExercisesView: React.FC = () => {
               </button>
             </div>
 
+            {/* 1. Nome do Exercício */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-300">Nome do Exercício</label>
               <input
@@ -226,89 +265,33 @@ export const ExercisesView: React.FC = () => {
                 required
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs font-bold focus:border-amber-400 focus:outline-none"
-                placeholder="ex: Flexão 90º com Apoio"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs font-bold focus:border-amber-400 focus:outline-none"
+                placeholder="ex: Flexão de Braço no Solo"
               />
             </div>
 
+            {/* 2. Tipo de Execução */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-300">Tipo de Execução</label>
               <select
                 value={executionType}
                 onChange={e => setExecutionType(e.target.value as ExerciseExecutionType)}
-                className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
               >
-                <option value="reps">Por Repetições</option>
-                <option value="time">Por Tempo (Isometria)</option>
+                <option value="reps">Por Repetições (Contagem de reps)</option>
+                <option value="time">Por Tempo (Isometria / Sustentação)</option>
               </select>
             </div>
 
-            {executionType === 'reps' && (
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-zinc-300">Meta Padrão de Repetições</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={defaultTargetReps}
-                  onChange={e => setDefaultTargetReps(e.target.value === '' ? '' : parseInt(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-mono font-bold"
-                  placeholder="20"
-                />
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-zinc-300">Tempo de Execução Padrão</label>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    value={workMins}
-                    onChange={e => setWorkMins(parseInt(e.target.value) || 0)}
-                    className="w-full px-2 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs font-mono font-bold"
-                    placeholder="1"
-                  />
-                  <span className="text-zinc-500 font-bold">:</span>
-                  <input
-                    type="number"
-                    value={workSecs}
-                    onChange={e => setWorkSecs(parseInt(e.target.value) || 0)}
-                    className="w-full px-2 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs font-mono font-bold"
-                    placeholder="00"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-zinc-300">Tempo de Descanso Padrão</label>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    value={restMins}
-                    onChange={e => setRestMins(parseInt(e.target.value) || 0)}
-                    className="w-full px-2 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs font-mono font-bold"
-                    placeholder="1"
-                  />
-                  <span className="text-zinc-500 font-bold">:</span>
-                  <input
-                    type="number"
-                    value={restSecs}
-                    onChange={e => setRestSecs(parseInt(e.target.value) || 0)}
-                    className="w-full px-2 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs font-mono font-bold"
-                    placeholder="00"
-                  />
-                </div>
-              </div>
-            </div>
-
+            {/* 3. Informações / Instruções sobre o exercício */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Instruções / Dicas de Execução TAF</label>
+              <label className="text-xs font-bold text-zinc-300">Informação / Instruções sobre o Exercício</label>
               <textarea
-                rows={2}
+                rows={3}
                 value={focusNotes}
                 onChange={e => setFocusNotes(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs focus:outline-none"
-                placeholder="ex: Manter cotovelos rente ao corpo na descida"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs focus:outline-none focus:border-amber-400"
+                placeholder="ex: Corpo alinhado, peito rente ao solo na descida e extensão total dos cotovelos."
               />
             </div>
 
