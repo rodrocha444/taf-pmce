@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import confetti from 'canvas-confetti';
-import type { Workout, ActiveSession, WorkoutSessionLog, UserSettings, Exercise } from '../types';
+import type { Workout, ActiveSession, WorkoutSessionLog, UserSettings, Exercise, ExerciseExecutionType } from '../types';
 import { DEFAULT_TAF_WORKOUT } from '../data/default-workout';
 import { audioEngine } from '../utils/audio';
 import { speechEngine } from '../utils/speech';
@@ -36,7 +36,7 @@ interface WorkoutStore {
   updateSettings: (settings: Partial<UserSettings>) => void;
   addExerciseToWorkout: (workoutId: string, exercise: Omit<Exercise, 'id' | 'durationSeconds'>) => void;
   updateExerciseInWorkout: (workoutId: string, exercise: Exercise) => void;
-  updateActiveExercise: (exerciseId: string, updates: { targetReps?: number; workDurationSeconds?: number; restDurationSeconds?: number }) => void;
+  updateActiveExercise: (exerciseId: string, updates: { executionType?: ExerciseExecutionType; targetReps?: number; workDurationSeconds?: number; restDurationSeconds?: number }) => void;
   deleteExerciseFromWorkout: (workoutId: string, exerciseId: string) => void;
   reorderExercisesInWorkout: (workoutId: string, startIndex: number, endIndex: number) => void;
 }
@@ -656,6 +656,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
             const restSecs = updates.restDurationSeconds !== undefined ? Math.max(0, updates.restDurationSeconds) : (ex.restDurationSeconds || 60);
             return {
               ...ex,
+              executionType: updates.executionType !== undefined ? updates.executionType : ex.executionType,
               targetReps: updates.targetReps !== undefined ? updates.targetReps : ex.targetReps,
               workDurationSeconds: workSecs,
               restDurationSeconds: restSecs,

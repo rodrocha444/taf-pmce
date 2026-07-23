@@ -84,6 +84,10 @@ class SpeechEngine {
     }
   }
 
+  isSpeaking(): boolean {
+    return !!this.activeUtterance || (this.synth ? this.synth.speaking : false);
+  }
+
   cancel() {
     if (this.synth) {
       try {

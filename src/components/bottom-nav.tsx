@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Edit3, History, Settings, Dumbbell, Play } from 'lucide-react';
+import { Home, History, Settings, Dumbbell, Play } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 
 export const BottomNav: React.FC = () => {

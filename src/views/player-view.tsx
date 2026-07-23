@@ -18,7 +18,6 @@ import {
   Flame,
   FastForward,
   CheckCircle2,
-  Clock,
   Edit2,
   Target
 } from 'lucide-react';

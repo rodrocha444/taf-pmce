@@ -36,7 +36,7 @@ export const WorkoutsView: React.FC = () => {
   const handleSaveNewWorkout = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim()) return;
-    const created = createWorkout(formTitle, formDescription);
+    createWorkout(formTitle, formDescription);
     setShowCreateModal(false);
     navigate('/edit');
   };
