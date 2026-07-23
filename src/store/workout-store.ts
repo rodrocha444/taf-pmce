@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import confetti from 'canvas-confetti';
-import type { Workout, ActiveSession, WorkoutSessionLog, UserSettings, Exercise, ExerciseExecutionType, RunningWorkout, RunningLog, ExerciseEvolutionLog } from '../types';
+import type { Workout, ActiveSession, WorkoutSessionLog, UserSettings, Exercise, ExerciseExecutionType, RunningWorkout, RunningLog, ExerciseEvolutionLog, ExerciseCatalogItem } from '../types';
 import { DEFAULT_TAF_WORKOUT } from '../data/default-workout';
+import { DEFAULT_EXERCISE_CATALOG } from '../data/default-catalog';
 import { audioEngine } from '../utils/audio';
 import { speechEngine } from '../utils/speech';
 import { wakeLockManager } from '../utils/wake-lock';
@@ -69,6 +70,12 @@ interface WorkoutStore {
   settings: UserSettings;
   runningWorkouts: RunningWorkout[];
   runningHistory: RunningLog[];
+  exerciseCatalog: ExerciseCatalogItem[];
+
+  // Catalog actions
+  addCatalogExercise: (item: Omit<ExerciseCatalogItem, 'id'>) => ExerciseCatalogItem;
+  deleteCatalogExercise: (id: string) => void;
+  addExerciseFromCatalogToWorkout: (workoutId: string, catalogId: string, overrides?: Partial<Omit<Exercise, 'id' | 'durationSeconds'>>) => void;
 
   // Actions
   getActiveWorkout: () => Workout;
@@ -122,6 +129,57 @@ export const useWorkoutStore = create<WorkoutStore>()(
       },
       runningWorkouts: DEFAULT_RUNNING_WORKOUTS,
       runningHistory: [],
+      exerciseCatalog: DEFAULT_EXERCISE_CATALOG,
+
+      addCatalogExercise: (itemData) => {
+        const newItem: ExerciseCatalogItem = {
+          ...itemData,
+          id: `cat-${Date.now()}`
+        };
+        set(state => ({
+          exerciseCatalog: [...(state.exerciseCatalog || DEFAULT_EXERCISE_CATALOG), newItem]
+        }));
+        try {
+          db.exerciseCatalog.put(newItem).catch(err => console.warn('Dexie error:', err));
+        } catch (e) {
+          console.warn('db error:', e);
+        }
+        return newItem;
+      },
+
+      deleteCatalogExercise: (id) => {
+        set(state => ({
+          exerciseCatalog: (state.exerciseCatalog || []).filter(c => c.id !== id || c.isDefault)
+        }));
+        try {
+          db.exerciseCatalog.delete(id).catch(err => console.warn('Dexie error:', err));
+        } catch (e) {
+          console.warn('db error:', e);
+        }
+      },
+
+      addExerciseFromCatalogToWorkout: (workoutId, catalogId, overrides) => {
+        const catalogItem = (get().exerciseCatalog || DEFAULT_EXERCISE_CATALOG).find(c => c.id === catalogId);
+        if (!catalogItem) return;
+
+        const workSecs = overrides?.workDurationSeconds ?? catalogItem.defaultWorkDurationSeconds;
+        const restSecs = overrides?.restDurationSeconds ?? catalogItem.defaultRestDurationSeconds;
+
+        const newEx: Exercise = {
+          id: `ex-${Date.now()}`,
+          catalogId: catalogItem.id,
+          name: catalogItem.name,
+          category: catalogItem.category,
+          executionType: catalogItem.executionType,
+          targetReps: overrides?.targetReps ?? catalogItem.defaultTargetReps,
+          focusNotes: overrides?.focusNotes ?? catalogItem.focusNotes,
+          workDurationSeconds: workSecs,
+          restDurationSeconds: restSecs,
+          durationSeconds: workSecs + restSecs
+        };
+
+        get().addExerciseToWorkout(workoutId, newEx);
+      },
 
       getActiveWorkout: () => {
         const { workouts, activeWorkoutId } = get();
@@ -893,7 +951,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
         settings: state.settings,
         activeSession: state.activeSession,
         runningWorkouts: state.runningWorkouts,
-        runningHistory: state.runningHistory
+        runningHistory: state.runningHistory,
+        exerciseCatalog: state.exerciseCatalog
       })
     }
   )

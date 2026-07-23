@@ -1,5 +1,17 @@
 export type ExerciseExecutionType = 'reps' | 'time';
 
+export interface ExerciseCatalogItem {
+  id: string;
+  name: string;
+  category: 'barra' | 'abdominal' | 'flexao' | 'perna' | 'isometria' | 'outros';
+  executionType: ExerciseExecutionType;
+  defaultTargetReps?: number;
+  defaultWorkDurationSeconds: number;
+  defaultRestDurationSeconds: number;
+  focusNotes?: string;
+  isDefault?: boolean;
+}
+
 export interface Exercise {
   id: string;
   name: string;
@@ -10,6 +22,7 @@ export interface Exercise {
   restDurationSeconds: number; // default 60 (1 min rest)
   durationSeconds: number;     // total = work + rest (120s / 2 mins)
   category?: 'barra' | 'abdominal' | 'flexao' | 'perna' | 'isometria' | 'outros';
+  catalogId?: string;          // referência ao exercício da biblioteca
 }
 
 export interface Workout {

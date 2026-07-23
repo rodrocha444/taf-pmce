@@ -9,6 +9,7 @@ import { HistoryView } from './views/history-view';
 import { SettingsView } from './views/settings-view';
 import { RunningView } from './views/running-view';
 import { ReportsView } from './views/reports-view';
+import { ExercisesView } from './views/exercises-view';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
@@ -28,6 +29,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<HomeView />} />
           <Route path="/workouts" element={<WorkoutsView />} />
+          <Route path="/exercises" element={<ExercisesView />} />
           <Route path="/running" element={<RunningView />} />
           <Route path="/player" element={<PlayerView />} />
           <Route path="/edit" element={<EditView />} />

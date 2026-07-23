@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RotateCcw, Save, ArrowLeft, Trash2, Edit2, Play, Coffee, Target } from 'lucide-react';
+import { Plus, RotateCcw, Save, ArrowLeft, Trash2, Edit2, Play, Coffee, Target, BookOpen } from 'lucide-react';
 import { useWorkoutStore } from '../store/workout-store';
 import type { Exercise } from '../types';
 import { formatSecondsToMMSS, getExerciseStartTime, getTotalWorkoutDuration } from '../utils/formatters';
@@ -10,6 +10,7 @@ export const EditView: React.FC = () => {
   const navigate = useNavigate();
   const workout = useWorkoutStore(state => state.getActiveWorkout());
   const workouts = useWorkoutStore(state => state.workouts);
+  const exerciseCatalog = useWorkoutStore(state => state.exerciseCatalog || []);
   const setActiveWorkoutId = useWorkoutStore(state => state.setActiveWorkoutId);
   const resetDefaultWorkout = useWorkoutStore(state => state.resetDefaultWorkout);
 
@@ -24,6 +25,7 @@ export const EditView: React.FC = () => {
   const [deleteExerciseTarget, setDeleteExerciseTarget] = useState<Exercise | null>(null);
   const [showResetModal, setShowResetModal] = useState<boolean>(false);
 
+  const [selectedCatalogId, setSelectedCatalogId] = useState<string>('');
   const [formName, setFormName] = useState<string>('');
   const [formNotes, setFormNotes] = useState<string>('');
   const [formExecutionType, setFormExecutionType] = useState<'reps' | 'time'>('reps');
@@ -34,8 +36,29 @@ export const EditView: React.FC = () => {
   const [restSeconds, setRestSeconds] = useState<number>(0);
   const [formCategory, setFormCategory] = useState<Exercise['category']>('outros');
 
+  const handleSelectCatalogItem = (catId: string) => {
+    setSelectedCatalogId(catId);
+    const catItem = exerciseCatalog.find(c => c.id === catId);
+    if (!catItem) return;
+
+    setFormName(catItem.name);
+    setFormNotes(catItem.focusNotes || '');
+    setFormExecutionType(catItem.executionType);
+    setFormTargetReps(catItem.defaultTargetReps ?? 10);
+    setFormCategory(catItem.category);
+
+    const workTotal = catItem.defaultWorkDurationSeconds || 60;
+    setWorkMinutes(Math.floor(workTotal / 60));
+    setWorkSeconds(workTotal % 60);
+
+    const restTotal = catItem.defaultRestDurationSeconds || 60;
+    setRestMinutes(Math.floor(restTotal / 60));
+    setRestSeconds(restTotal % 60);
+  };
+
   const openAddModal = () => {
     setEditingExercise(null);
+    setSelectedCatalogId('');
     setFormName('');
     setFormNotes('');
     setFormExecutionType('reps');
@@ -46,6 +69,10 @@ export const EditView: React.FC = () => {
     setRestSeconds(0);
     setFormCategory('outros');
     setIsAdding(true);
+
+    if (exerciseCatalog.length > 0) {
+      handleSelectCatalogItem(exerciseCatalog[0].id);
+    }
   };
 
   const openEditModal = (exercise: Exercise) => {
@@ -266,6 +293,37 @@ export const EditView: React.FC = () => {
             </h3>
 
             <div className="space-y-3.5 text-xs">
+              {isAdding && (
+                <div className="bg-zinc-950 p-3 rounded-2xl border border-zinc-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                      Selecione da Biblioteca de Exercícios
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/exercises')}
+                      className="text-[11px] font-bold text-amber-400 hover:underline flex items-center gap-1"
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <span>Gerenciar</span>
+                    </button>
+                  </div>
+
+                  <select
+                    value={selectedCatalogId}
+                    onChange={e => handleSelectCatalogItem(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
+                  >
+                    <option value="">-- Escolher da Biblioteca --</option>
+                    {exerciseCatalog.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.category})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block text-zinc-300 font-semibold mb-1">Nome do Exercício</label>
                 <input
