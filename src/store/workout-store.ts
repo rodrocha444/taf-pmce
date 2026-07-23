@@ -21,6 +21,21 @@ export const DEFAULT_RUNNING_WORKOUTS: RunningWorkout[] = [
     createdAt: new Date().toISOString()
   },
   {
+    id: 'run-interval-6x400',
+    title: 'Treino Intervalado por Voltas (6x 400m)',
+    targetMode: 'interval',
+    targetDistanceKm: 2.4,
+    targetDurationSeconds: 720,
+    targetPaceSecPerKm: 300,
+    lapsCount: 6,
+    lapDistanceMeters: 400,
+    lapTargetSeconds: 120,
+    restBetweenLapsSeconds: 60,
+    notes: '6 tiros de 400m em pista com 1 minuto de trote/descanso entre tiros',
+    isDefault: true,
+    createdAt: new Date().toISOString()
+  },
+  {
     id: 'run-5k',
     title: 'Rodagem 5km',
     targetMode: 'distance',
