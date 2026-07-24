@@ -50,6 +50,15 @@ export const DEFAULT_RUNNING_WORKOUTS: RunningWorkout[] = [
     createdAt: new Date().toISOString()
   },
   {
+    id: 'run-30min-time',
+    title: 'Corrida Livre (30 Minutos)',
+    targetMode: 'time',
+    targetDurationSeconds: 1800,
+    notes: 'Treino contínuo por tempo. A distância e o ritmo são livres.',
+    isDefault: true,
+    createdAt: new Date().toISOString()
+  },
+  {
     id: 'run-sprint-400m',
     title: 'Tiro de Velocidade (400m)',
     targetMode: 'distance',
@@ -106,6 +115,7 @@ interface WorkoutStore {
 
   // Running actions
   addRunningWorkout: (workout: Omit<RunningWorkout, 'id' | 'createdAt'>) => RunningWorkout;
+  updateRunningWorkout: (id: string, workout: Partial<Omit<RunningWorkout, 'id' | 'createdAt'>>) => void;
   deleteRunningWorkout: (id: string) => void;
   addRunningLog: (log: Omit<RunningLog, 'id' | 'paceSecPerKm' | 'speedKmH'>) => void;
   deleteRunningLog: (id: string) => void;
@@ -940,6 +950,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
           runningWorkouts: [newRun, ...(state.runningWorkouts || [])]
         }));
         return newRun;
+      },
+
+      updateRunningWorkout: (id, workoutData) => {
+        set(state => ({
+          runningWorkouts: (state.runningWorkouts || []).map(w =>
+            w.id === id ? { ...w, ...workoutData } : w
+          )
+        }));
       },
 
       deleteRunningWorkout: (id) => {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Plus,
+  Pencil,
   Trash2,
   Calculator,
   Award,
@@ -11,7 +12,7 @@ import {
   Flag
 } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
-import type { RunningTargetMode, RunningLapDetail } from '../../types';
+import type { RunningWorkout, RunningTargetMode, RunningLapDetail } from '../../types';
 import { formatPace, formatSecondsToMMSS, formatDate, calculatePaceSecPerKm, calculateSpeedKmH } from '../../utils/formatters';
 
 interface ManualLapItem {
@@ -24,14 +25,16 @@ export const RunningView: React.FC = () => {
   const runningWorkouts = useWorkoutStore(state => state.runningWorkouts || []);
   const runningHistory = useWorkoutStore(state => state.runningHistory || []);
   const addRunningWorkout = useWorkoutStore(state => state.addRunningWorkout);
+  const updateRunningWorkout = useWorkoutStore(state => state.updateRunningWorkout);
   const deleteRunningWorkout = useWorkoutStore(state => state.deleteRunningWorkout);
   const addRunningLog = useWorkoutStore(state => state.addRunningLog);
   const deleteRunningLog = useWorkoutStore(state => state.deleteRunningLog);
   const [activeTab, setActiveTab] = useState<'workouts' | 'history' | 'calculator'>('workouts');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
-  // Create Workout Modal state
+  // Create / Edit Workout Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingWorkout, setEditingWorkout] = useState<RunningWorkout | null>(null);
   const [workoutTitle, setWorkoutTitle] = useState('');
   const [targetMode, setTargetMode] = useState<RunningTargetMode>('distance');
   const [targetPaceMins, setTargetPaceMins] = useState('5');
@@ -219,7 +222,54 @@ export const RunningView: React.FC = () => {
     setManualLaps(prev => prev.map((lap, i) => i === index ? { ...lap, [field]: value } : lap));
   };
 
-  // Handle create new running workout
+  const handleOpenCreateModal = () => {
+    setEditingWorkout(null);
+    setWorkoutTitle('');
+    setTargetMode('distance');
+    setTargetPaceMins('5');
+    setTargetPaceSecs('00');
+    setTargetDistanceKm('2.4');
+    setTargetMins('12');
+    setTargetSecs('00');
+    setLapsCountInput('6');
+    setLapDistMetersInput('400');
+    setLapTargetMins('2');
+    setLapTargetSecs('00');
+    setRestBetweenLapsSecsInput('60');
+    setWorkoutNotes('');
+    setShowCreateModal(true);
+  };
+
+  const handleOpenEditModal = (w: RunningWorkout) => {
+    setEditingWorkout(w);
+    setWorkoutTitle(w.title);
+    setTargetMode(w.targetMode);
+    if (w.targetMode === 'interval') {
+      setLapsCountInput((w.lapsCount || 6).toString());
+      setLapDistMetersInput((w.lapDistanceMeters || 400).toString());
+      const lapSecs = w.lapTargetSeconds || 120;
+      setLapTargetMins(Math.floor(lapSecs / 60).toString());
+      setLapTargetSecs((lapSecs % 60).toString().padStart(2, '0'));
+      setRestBetweenLapsSecsInput((w.restBetweenLapsSeconds || 60).toString());
+    } else if (w.targetMode === 'time') {
+      const durSecs = w.targetDurationSeconds || 1800;
+      setTargetMins(Math.floor(durSecs / 60).toString());
+      setTargetSecs((durSecs % 60).toString().padStart(2, '0'));
+    } else {
+      const dist = w.targetDistanceKm || 2.4;
+      setTargetDistanceKm(dist.toString());
+      const durSecs = w.targetDurationSeconds || 720;
+      setTargetMins(Math.floor(durSecs / 60).toString());
+      setTargetSecs((durSecs % 60).toString().padStart(2, '0'));
+      const paceSecs = w.targetPaceSecPerKm || (durSecs && dist ? Math.round(durSecs / dist) : 300);
+      setTargetPaceMins(Math.floor(paceSecs / 60).toString());
+      setTargetPaceSecs((paceSecs % 60).toString().padStart(2, '0'));
+    }
+    setWorkoutNotes(w.notes || '');
+    setShowCreateModal(true);
+  };
+
+  // Handle create or update running workout
   const handleSaveWorkout = (e: React.FormEvent) => {
     e.preventDefault();
     if (!workoutTitle.trim()) return;
@@ -233,33 +283,63 @@ export const RunningView: React.FC = () => {
       // Tempo de corrida puro (sem adicionar o tempo de descanso estático)
       const totalSecsVal = lapTargetSecsVal * laps;
 
-      addRunningWorkout({
+      const dataToSave = {
         title: workoutTitle.trim(),
-        targetMode: 'interval',
+        targetMode: 'interval' as RunningTargetMode,
         targetDistanceKm: Number(totalKm.toFixed(2)),
         targetDurationSeconds: totalSecsVal,
-        targetPaceSecPerKm: Math.round(totalSecsVal / totalKm),
+        targetPaceSecPerKm: totalKm > 0 ? Math.round(totalSecsVal / totalKm) : undefined,
         lapsCount: laps,
         lapDistanceMeters: lapMeters,
         lapTargetSeconds: lapTargetSecsVal,
         restBetweenLapsSeconds: restSecsVal,
         notes: workoutNotes.trim() || `${laps} tiros de ${lapMeters}m (descanso: ${restSecsVal}s)`
-      });
+      };
+
+      if (editingWorkout) {
+        updateRunningWorkout(editingWorkout.id, dataToSave);
+      } else {
+        addRunningWorkout(dataToSave);
+      }
+    } else if (targetMode === 'time') {
+      const durSecs = (parseInt(targetMins) || 0) * 60 + (parseInt(targetSecs) || 0);
+
+      const dataToSave = {
+        title: workoutTitle.trim(),
+        targetMode: 'time' as RunningTargetMode,
+        targetDurationSeconds: durSecs > 0 ? durSecs : 1800,
+        targetDistanceKm: undefined,
+        targetPaceSecPerKm: undefined,
+        notes: workoutNotes.trim() || `Corrida por tempo (${Math.floor(durSecs / 60)} min)`
+      };
+
+      if (editingWorkout) {
+        updateRunningWorkout(editingWorkout.id, dataToSave);
+      } else {
+        addRunningWorkout(dataToSave);
+      }
     } else {
       const distKm = parseFloat(targetDistanceKm) || 2.4;
       const durSecs = (parseInt(targetMins) || 0) * 60 + (parseInt(targetSecs) || 0);
 
-      addRunningWorkout({
+      const dataToSave = {
         title: workoutTitle.trim(),
         targetMode,
         targetDistanceKm: distKm,
         targetDurationSeconds: durSecs > 0 ? durSecs : undefined,
         targetPaceSecPerKm: durSecs > 0 && distKm > 0 ? Math.round(durSecs / distKm) : undefined,
         notes: workoutNotes.trim()
-      });
+      };
+
+      if (editingWorkout) {
+        updateRunningWorkout(editingWorkout.id, dataToSave);
+      } else {
+        addRunningWorkout(dataToSave);
+      }
     }
 
     setShowCreateModal(false);
+    setEditingWorkout(null);
     setWorkoutTitle('');
     setWorkoutNotes('');
   };
@@ -377,7 +457,7 @@ export const RunningView: React.FC = () => {
                 Metas e Planos de Corrida
               </h2>
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={handleOpenCreateModal}
                 className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -401,7 +481,7 @@ export const RunningView: React.FC = () => {
                       <div>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold uppercase">
-                            {w.targetMode === 'interval' ? 'Intervalado / Voltas' : w.targetMode === 'distance' ? 'Por Distância' : w.targetMode === 'time' ? 'Por Tempo' : 'Por Pace'}
+                            {w.targetMode === 'interval' ? 'Intervalado / Voltas' : w.targetMode === 'time' ? 'Por Tempo Apenas' : w.targetMode === 'distance' ? 'Por Distância' : 'Por Pace'}
                           </span>
                           {w.isDefault && (
                             <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
@@ -412,15 +492,24 @@ export const RunningView: React.FC = () => {
                         <h3 className="text-base font-bold text-white mt-1.5 font-['Outfit']">{w.title}</h3>
                       </div>
 
-                      {!w.isDefault && (
+                      <div className="flex items-center gap-1">
                         <button
-                          onClick={() => deleteRunningWorkout(w.id)}
-                          className="p-1.5 text-zinc-600 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors"
-                          title="Excluir meta"
+                          onClick={() => handleOpenEditModal(w)}
+                          className="p-1.5 text-zinc-400 hover:text-amber-400 rounded-lg hover:bg-zinc-800 transition-colors"
+                          title="Editar meta"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Pencil className="w-4 h-4" />
                         </button>
-                      )}
+                        {!w.isDefault && (
+                          <button
+                            onClick={() => deleteRunningWorkout(w.id)}
+                            className="p-1.5 text-zinc-600 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors"
+                            title="Excluir meta"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Interval Details Badge if interval mode */}
@@ -436,7 +525,7 @@ export const RunningView: React.FC = () => {
                       <div>
                         <span className="text-[10px] text-zinc-500 font-sans block">Distância</span>
                         <strong className="text-sm font-bold text-white">
-                          {w.targetDistanceKm ? `${w.targetDistanceKm} km` : '--'}
+                          {w.targetDistanceKm ? `${w.targetDistanceKm} km` : 'Livre'}
                         </strong>
                       </div>
 
@@ -450,7 +539,7 @@ export const RunningView: React.FC = () => {
                       <div>
                         <span className="text-[10px] text-zinc-500 font-sans block">Pace Meta</span>
                         <strong className="text-sm font-bold text-cyan-400">
-                          {formatPace(paceSecs)}
+                          {paceSecs > 0 ? formatPace(paceSecs) : 'Livre'}
                         </strong>
                       </div>
                     </div>
@@ -586,11 +675,21 @@ export const RunningView: React.FC = () => {
                                 </span>
                               )}
                               {diffSecs !== null && (
-                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ${diffSecs <= 0
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                  : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ${linkedWorkout?.targetMode === 'time'
+                                  ? (log.durationSeconds >= (targetDur || 0)
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20')
+                                  : (diffSecs <= 0
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                    : 'bg-rose-500/10 text-rose-400 border-rose-500/20')
                                   }`}>
-                                  {diffSecs <= 0 ? `🟢 Meta Batida! (${Math.abs(diffSecs)}s abaixo)` : `🟡 +${diffSecs}s acima da meta`}
+                                  {linkedWorkout?.targetMode === 'time'
+                                    ? (log.durationSeconds >= (targetDur || 0)
+                                      ? `🟢 Tempo Cumprido! (${formatSecondsToMMSS(log.durationSeconds)})`
+                                      : `🟡 ${Math.round((targetDur || 0) - log.durationSeconds)}s restantes`)
+                                    : (diffSecs <= 0
+                                      ? `🟢 Meta Batida! (${Math.abs(diffSecs)}s abaixo)`
+                                      : `🟡 +${diffSecs}s acima da meta`)}
                                 </span>
                               )}
                             </div>
@@ -781,10 +880,15 @@ export const RunningView: React.FC = () => {
             className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 max-w-md w-full space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-              <h3 className="text-base font-bold text-white font-['Outfit']">Criar Nova Meta de Corrida</h3>
+              <h3 className="text-base font-bold text-white font-['Outfit']">
+                {editingWorkout ? 'Editar Meta de Corrida' : 'Criar Nova Meta de Corrida'}
+              </h3>
               <button
                 type="button"
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setEditingWorkout(null);
+                }}
                 className="text-zinc-400 hover:text-white font-bold text-sm p-1"
               >
                 ✕
@@ -810,14 +914,43 @@ export const RunningView: React.FC = () => {
                 onChange={e => setTargetMode(e.target.value as RunningTargetMode)}
                 className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
               >
-                <option value="interval">⏱️ Por Intervalos / Voltas (Tiros de Pista)</option>
+                <option value="time">⌛ Por Tempo Apenas (ex: Correr 30 min)</option>
                 <option value="distance">📍 Por Distância Alvo (km)</option>
-                <option value="time">⌛ Por Tempo Limite (minutos)</option>
+                <option value="interval">⏱️ Por Intervalos / Voltas (Tiros de Pista)</option>
                 <option value="pace">⚡ Por Pace Alvo (min/km)</option>
               </select>
             </div>
 
-            {targetMode === 'interval' ? (
+            {targetMode === 'time' ? (
+              <div className="space-y-3 bg-zinc-950/80 p-3 rounded-2xl border border-zinc-800">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-cyan-400">⌛ Tempo Alvo (Minutos : Segundos)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      value={targetMins}
+                      onChange={e => setTargetMins(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-cyan-400 text-xs font-mono font-bold"
+                      placeholder="30"
+                    />
+                    <span className="text-zinc-500 font-bold">:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={targetSecs}
+                      onChange={e => setTargetSecs(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-cyan-400 text-xs font-mono font-bold"
+                      placeholder="00"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  💡 <strong className="text-zinc-300">Treino por Tempo:</strong> A meta considera apenas a duração da corrida. A distância percorrida e o ritmo (pace) serão registrados no seu histórico ao registrar seu resultado.
+                </p>
+              </div>
+            ) : targetMode === 'interval' ? (
               <div className="space-y-3 bg-zinc-950/80 p-3 rounded-2xl border border-zinc-800">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -964,7 +1097,10 @@ export const RunningView: React.FC = () => {
             <div className="flex items-center gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setEditingWorkout(null);
+                }}
                 className="w-1/2 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700"
               >
                 Cancelar
@@ -973,7 +1109,7 @@ export const RunningView: React.FC = () => {
                 type="submit"
                 className="w-1/2 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs hover:bg-amber-400 shadow-lg shadow-amber-500/20"
               >
-                Salvar Meta
+                {editingWorkout ? 'Salvar Alterações' : 'Salvar Meta'}
               </button>
             </div>
           </form>
