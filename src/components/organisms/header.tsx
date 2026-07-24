@@ -35,7 +35,7 @@ export const Header: React.FC = () => {
   const isSettingsActive = location.pathname === '/settings';
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-30 bg-zinc-950/85 backdrop-blur-xl border-b border-zinc-800/80 px-4 py-3 header-safe shadow-lg shadow-black/30">
+    <header className="fixed top-0 left-0 right-0 z-40 bg-zinc-950/85 backdrop-blur-xl border-b border-zinc-800/80 px-4 py-3 header-safe shadow-lg shadow-black/30">
       {/* Magical Top Ambient Glow Line */}
       <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent opacity-80" />
 

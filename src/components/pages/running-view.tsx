@@ -27,8 +27,6 @@ export const RunningView: React.FC = () => {
   const deleteRunningWorkout = useWorkoutStore(state => state.deleteRunningWorkout);
   const addRunningLog = useWorkoutStore(state => state.addRunningLog);
   const deleteRunningLog = useWorkoutStore(state => state.deleteRunningLog);
-  const clearRunningHistory = useWorkoutStore(state => state.clearRunningHistory);
-
   const [activeTab, setActiveTab] = useState<'workouts' | 'history' | 'calculator'>('workouts');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
@@ -327,9 +325,9 @@ export const RunningView: React.FC = () => {
   const calcSpeed = calculateSpeedKmH(calcDistNum, calcTotalSecs);
 
   return (
-    <div className="space-y-4 pb-28">
+    <div className="space-y-4 py-4">
       {/* SEGUNDO CABEÇALHO (SUB-HEADER DA PÁGINA DE CORRIDA - LARGURA TOTAL) */}
-      <header className="sticky top-header-offset z-20 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800/80 px-4 py-0 shadow-md shadow-black/40">
+      <header className="sticky top-0 z-30 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800/80 px-4 py-0 shadow-md shadow-black/40">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           {/* Controllers: Tabs Metas | Histórico | Pace (Full Width / Sem Retângulo Arredondado) */}
           <div className="flex-1 flex items-center gap-1 sm:gap-2 font-bold text-xs">
@@ -364,27 +362,6 @@ export const RunningView: React.FC = () => {
             >
               <Calculator className="w-4 h-4 stroke-[2.5]" />
               <span>Pace</span>
-            </button>
-          </div>
-
-          {/* Contextual Action Buttons in Sub-Header */}
-          <div className="flex items-center gap-1.5 shrink-0 py-1.5">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="hidden sm:flex px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-amber-500/40 text-amber-400 font-bold text-xs transition-all items-center gap-1.5 cursor-pointer"
-              title="Criar Nova Meta de Corrida"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
-              <span>Nova Meta</span>
-            </button>
-
-            <button
-              onClick={() => setShowLogModal(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-zinc-950 font-black text-xs shadow-lg shadow-amber-500/20 hover:bg-amber-400 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
-              title="Registrar Resultado de Corrida"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span className="hidden xs:inline">Registrar</span>
             </button>
           </div>
         </div>
@@ -534,30 +511,30 @@ export const RunningView: React.FC = () => {
         {activeTab === 'history' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                Histórico de Execuções ({runningHistory.length})
-              </h2>
+              <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+                <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  Histórico de Execuções ({runningHistory.length})
+                </h2>
+                <button
+                  onClick={() => setShowLogModal(true)}
+                  className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Registrar Corrida</span>
+                </button>
+              </div>
 
               <div className="flex items-center gap-2">
                 <select
                   value={historyFilterWorkoutId}
                   onChange={e => setHistoryFilterWorkoutId(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
+                  className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none w-full sm:w-auto"
                 >
                   <option value="all">Todas as Metas</option>
                   {runningWorkouts.map(w => (
                     <option key={w.id} value={w.id}>{w.title}</option>
                   ))}
                 </select>
-
-                {runningHistory.length > 0 && (
-                  <button
-                    onClick={clearRunningHistory}
-                    className="text-xs font-bold text-rose-400 hover:underline shrink-0"
-                  >
-                    Limpar Histórico
-                  </button>
-                )}
               </div>
             </div>
 

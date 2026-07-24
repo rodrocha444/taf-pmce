@@ -17,11 +17,9 @@ export const HistoryView: React.FC = () => {
   const history = useWorkoutStore(state => state.history || []);
   const workouts = useWorkoutStore(state => state.workouts || []);
   const deleteHistoryLog = useWorkoutStore(state => state.deleteHistoryLog);
-  const clearHistory = useWorkoutStore(state => state.clearHistory);
   const addManualHistoryLog = useWorkoutStore(state => state.addManualHistoryLog);
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [showClearAllModal, setShowClearAllModal] = useState<boolean>(false);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   // Manual Workout Log Modal state
@@ -50,15 +48,16 @@ export const HistoryView: React.FC = () => {
 
   // Initialize or reset exercise tracking when modal opens or workout changes
   const handleOpenManualModal = () => {
-    if (!selectedWorkout) return;
     const initialMap: Record<string, { completed: boolean; reps: string; timeSecs: string }> = {};
-    selectedWorkout.exercises.forEach(ex => {
-      initialMap[ex.id] = {
-        completed: true,
-        reps: ex.targetReps ? String(ex.targetReps) : '10',
-        timeSecs: String(ex.workDurationSeconds || 60)
-      };
-    });
+    if (selectedWorkout) {
+      selectedWorkout.exercises.forEach(ex => {
+        initialMap[ex.id] = {
+          completed: true,
+          reps: String(ex.targetReps || 10),
+          timeSecs: String(ex.workDurationSeconds || 60)
+        };
+      });
+    }
     setExerciseStatusMap(initialMap);
     setShowManualModal(true);
   };
@@ -83,11 +82,6 @@ export const HistoryView: React.FC = () => {
       deleteHistoryLog(deleteTargetId);
       setDeleteTargetId(null);
     }
-  };
-
-  const handleConfirmClearAll = () => {
-    clearHistory();
-    setShowClearAllModal(false);
   };
 
   const handleSaveManualLog = (e: React.FormEvent) => {
@@ -146,21 +140,7 @@ export const HistoryView: React.FC = () => {
   const totalSecondsTrained = history.reduce((acc, h) => acc + (h.realDurationSeconds || h.durationSeconds || 0), 0);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 space-y-6">
-      {/* Action Bar (Limpar se houver historico) */}
-      {history.length > 0 && (
-        <div className="flex items-center justify-end">
-          <button
-            onClick={() => setShowClearAllModal(true)}
-            className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-rose-400 text-xs font-semibold flex items-center gap-1 transition-all"
-            title="Limpar Histórico"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Limpar Histórico</span>
-          </button>
-        </div>
-      )}
-
+    <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-3.5 text-center space-y-1">
@@ -187,14 +167,6 @@ export const HistoryView: React.FC = () => {
           <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
             Sessões Registradas ({history.length})
           </h2>
-          {history.length > 0 && (
-            <button
-              onClick={() => setShowClearAllModal(true)}
-              className="text-xs font-bold text-rose-400 hover:underline"
-            >
-              Limpar Tudo
-            </button>
-          )}
         </div>
 
         {history.length === 0 ? (
@@ -487,17 +459,6 @@ export const HistoryView: React.FC = () => {
         variant="danger"
         onConfirm={handleConfirmSingleDelete}
         onCancel={() => setDeleteTargetId(null)}
-      />
-
-      {/* Confirm Clear All Modal */}
-      <ConfirmModal
-        isOpen={showClearAllModal}
-        title="Limpar Todo o Histórico de Treinos"
-        description="Tem certeza que deseja apagar todo o histórico de treinos de força? Esta ação não pode ser desfeita."
-        confirmLabel="Limpar Tudo"
-        variant="danger"
-        onConfirm={handleConfirmClearAll}
-        onCancel={() => setShowClearAllModal(false)}
       />
     </div>
   );

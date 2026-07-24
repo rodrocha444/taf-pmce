@@ -16,16 +16,30 @@ import {
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const isHeaderHidden = location.pathname === '/player' || location.pathname === '/edit';
+  const mainRef = React.useRef<HTMLElement>(null);
 
   useEffect(() => {
     const cleanup = setupAutoSyncLifecycle();
     return cleanup;
   }, []);
 
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, [location.pathname]);
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-amber-500 selection:text-zinc-950">
+    <div className="h-screen h-[100dvh] bg-zinc-950 text-zinc-100 font-sans selection:bg-amber-500 selection:text-zinc-950 overflow-hidden relative">
       <Header />
-      <main className={`flex-1 px-safe ${isHeaderHidden ? 'pt-safe-top' : 'pt-header-offset'}`}>
+      <main
+        ref={mainRef}
+        className={`absolute left-0 right-0 overflow-y-auto overflow-x-hidden px-safe ${
+          isHeaderHidden
+            ? 'top-0 bottom-0 player-safe-container'
+            : 'main-content-viewport'
+        }`}
+      >
         {children}
       </main>
       <BottomNav />

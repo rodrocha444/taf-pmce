@@ -8,6 +8,9 @@
 
   html,
   body {
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
     overscroll-behavior: none;
     overscroll-behavior-y: none;
     overscroll-behavior-x: none;
@@ -17,19 +20,19 @@
     background-color: #09090b;
     color: #f4f4f5;
     font-family: var(--font-sans);
-    min-height: 100vh;
-    min-height: 100dvh;
+    height: 100%;
+    height: 100dvh;
     margin: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
-    overflow-x: hidden;
+    overflow: hidden;
 
-    /* Native App User Selection Prevention */
+    /* Prevenção de seleção de texto nativo do app */
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
 
-    /* Ambient Magical Dark Background Gradient */
+    /* Gradiente de fundo escuro ambiente */
     background-image:
       radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.05) 0%, transparent 45%),
       radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.05) 0%, transparent 45%),
@@ -37,7 +40,7 @@
     background-attachment: fixed;
   }
 
-  /* Allow text selection in editable fields */
+  /* Permitir seleção de texto em campos editáveis */
   input,
   textarea,
   [contenteditable="true"],
@@ -47,13 +50,13 @@
   }
 }
 
-/* iOS Safe Area Utilities for iPhone Notch / Dynamic Island / Status Bar */
+/* Utilitários de Safe Area para Notch do iPhone / Ilha Dinâmica / Barra de Status */
 .pt-safe-top {
   padding-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
 }
 
 .pb-safe-bottom {
-  padding-bottom: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
+  padding-bottom: max(0.2rem, calc(env(safe-area-inset-bottom, 0px)));
 }
 
 .px-safe {
@@ -61,27 +64,21 @@
   padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
 }
 
-/* Header safe top padding for iPhone camera / dynamic island */
+/* Espaçamento superior seguro do cabeçalho para câmera/ilha dinâmica do iPhone */
 .header-safe {
   padding-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
 }
 
-/* Main content top padding offset to prevent fixed header overlap */
-.pt-header-offset {
-  padding-top: max(5.25rem, calc(env(safe-area-inset-top, 0px) + 4.5rem));
+/* Viewport do conteúdo principal delimitado estritamente entre o cabeçalho fixo e a navegação inferior */
+.main-content-viewport {
+  top: max(5.125rem, calc(env(safe-area-inset-top, 0px) + 4.375rem));
+  bottom: max(3.5rem, calc(env(safe-area-inset-bottom, 0px) + 3.25rem));
 }
 
-/* Running sub-header sticky top offset */
-.top-header-offset {
-  top: max(5.25rem, calc(env(safe-area-inset-top, 0px) + 4.5rem));
-}
+/* Espaçamento inferior seguro do rodapé para a barra do Home Indicator do iPhone */
+.bottom-nav-safe {}
 
-/* Bottom bar safe bottom padding for iPhone home indicator bar */
-.bottom-nav-safe {
-  padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
-}
-
-/* Fullscreen player safe top/bottom spacing */
+/* Espaçamento superior/inferior seguro do player em tela cheia */
 .player-safe-container {
   padding-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
   padding-bottom: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
@@ -89,7 +86,7 @@
   padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
 }
 
-/* Custom scrollbars */
+/* Barras de rolagem personalizadas */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -108,7 +105,7 @@
   background: #3f3f46;
 }
 
-/* Magical Animations */
+/* Animações e efeitos visuais */
 @keyframes pulse-subtle {
 
   0%,
@@ -191,7 +188,7 @@
   animation: glow-pulse 3s ease-in-out infinite;
 }
 
-/* Glassmorphism Cards */
+/* Cards com efeito de vidro (Glassmorphism) */
 .glass-card {
   background: rgba(24, 24, 27, 0.75);
   backdrop-filter: blur(16px);

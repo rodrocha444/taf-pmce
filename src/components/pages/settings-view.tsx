@@ -92,7 +92,7 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
         <h1 className="text-xl font-bold text-white font-['Outfit'] tracking-tight">Configurações do Aplicativo</h1>
@@ -464,6 +464,7 @@ export const SettingsView: React.FC = () => {
         description="Esta ação irá restaurar os exercícios registrados da biblioteca e o treino TAF PMCE para o padrão oficial com relação 1 para muitos. Deseja continuar?"
         confirmLabel="Resetar Banco"
         variant="danger"
+        countdownSeconds={5}
         onConfirm={handleConfirmReset}
         onCancel={() => setShowResetModal(false)}
       />

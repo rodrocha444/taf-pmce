@@ -1,5 +1,5 @@
-import React from 'react';
-import { CheckCircle2, SkipForward, Trash2, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CheckCircle2, SkipForward, Trash2, RotateCcw, ShieldAlert } from 'lucide-react';
 import { ModalBase, Button } from '../atoms';
 
 export interface ConfirmModalProps {
@@ -9,6 +9,7 @@ export interface ConfirmModalProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'danger' | 'warning' | 'emerald' | 'amber';
+  countdownSeconds?: number;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -20,9 +21,36 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
   variant = 'danger',
+  countdownSeconds,
   onConfirm,
   onCancel
 }) => {
+  const [countdown, setCountdown] = useState<number>(countdownSeconds || 0);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCountdown(countdownSeconds || 0);
+      return;
+    }
+
+    if (countdownSeconds && countdownSeconds > 0) {
+      setCountdown(countdownSeconds);
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    } else {
+      setCountdown(0);
+    }
+  }, [isOpen, countdownSeconds]);
+
   const getVariantStyles = () => {
     switch (variant) {
       case 'emerald':
@@ -47,7 +75,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
       default:
         return {
           iconBg: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-          icon: <Trash2 className="w-6 h-6" />,
+          icon: countdown > 0 ? <ShieldAlert className="w-6 h-6 animate-pulse" /> : <Trash2 className="w-6 h-6" />,
           btnVariant: 'rose' as const
         };
     }
@@ -66,6 +94,13 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <p className="text-xs text-zinc-400 leading-relaxed">{description}</p>
         </div>
 
+        {countdown > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3.5 py-2 text-xs text-amber-400 font-medium flex items-center justify-center gap-2 animate-pulse">
+            <span>⏳</span>
+            <span>Aguarde <strong>{countdown}s</strong> para habilitar a confirmação.</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3 pt-2">
           <Button
             type="button"
@@ -81,9 +116,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             variant={styles.btnVariant}
             size="md"
             fullWidth
+            disabled={countdown > 0}
             onClick={onConfirm}
           >
-            {confirmLabel}
+            {countdown > 0 ? `${confirmLabel} (${countdown}s)` : confirmLabel}
           </Button>
         </div>
       </div>
