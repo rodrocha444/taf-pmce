@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  Trash2, 
-  Calculator, 
-  Award, 
+import {
+  Plus,
+  Trash2,
+  Calculator,
+  Award,
   Gauge,
   ArrowUpRight,
   ChevronDown,
@@ -42,7 +42,7 @@ export const RunningView: React.FC = () => {
   const [targetMins, setTargetMins] = useState('12');
   const [targetSecs, setTargetSecs] = useState('00');
   const [modalLastChanged, setModalLastChanged] = useState<'pace' | 'dist' | 'time'>('time');
-  
+
   // Interval specific fields
   const [lapsCountInput, setLapsCountInput] = useState('6');
   const [lapDistMetersInput, setLapDistMetersInput] = useState('400');
@@ -329,17 +329,16 @@ export const RunningView: React.FC = () => {
   return (
     <div className="space-y-4 pb-28">
       {/* SEGUNDO CABEÇALHO (SUB-HEADER DA PÁGINA DE CORRIDA - LARGURA TOTAL) */}
-      <header className="sticky top-[57px] z-20 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800/80 px-4 py-0 shadow-md shadow-black/40">
+      <header className="sticky top-header-offset z-20 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800/80 px-4 py-0 shadow-md shadow-black/40">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           {/* Controllers: Tabs Metas | Histórico | Pace (Full Width / Sem Retângulo Arredondado) */}
           <div className="flex-1 flex items-center gap-1 sm:gap-2 font-bold text-xs">
             <button
               onClick={() => setActiveTab('workouts')}
-              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-3 transition-all flex items-center justify-center gap-1.5 border-b-2 font-bold cursor-pointer whitespace-nowrap ${
-                activeTab === 'workouts'
-                  ? 'border-amber-400 text-amber-400 bg-amber-500/10'
-                  : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'
-              }`}
+              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-3 transition-all flex items-center justify-center gap-1.5 border-b-2 font-bold cursor-pointer whitespace-nowrap ${activeTab === 'workouts'
+                ? 'border-amber-400 text-amber-400 bg-amber-500/10'
+                : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+                }`}
             >
               <Gauge className="w-4 h-4 stroke-[2.5]" />
               <span>Metas</span>
@@ -347,11 +346,10 @@ export const RunningView: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('history')}
-              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-3 transition-all flex items-center justify-center gap-1.5 border-b-2 font-bold cursor-pointer whitespace-nowrap ${
-                activeTab === 'history'
-                  ? 'border-amber-400 text-amber-400 bg-amber-500/10'
-                  : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'
-              }`}
+              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-3 transition-all flex items-center justify-center gap-1.5 border-b-2 font-bold cursor-pointer whitespace-nowrap ${activeTab === 'history'
+                ? 'border-amber-400 text-amber-400 bg-amber-500/10'
+                : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+                }`}
             >
               <Award className="w-4 h-4 stroke-[2.5]" />
               <span>Histórico <span className="text-[10px] opacity-80 font-mono">({runningHistory.length})</span></span>
@@ -359,11 +357,10 @@ export const RunningView: React.FC = () => {
 
             <button
               onClick={() => setActiveTab('calculator')}
-              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-3 transition-all flex items-center justify-center gap-1.5 border-b-2 font-bold cursor-pointer whitespace-nowrap ${
-                activeTab === 'calculator'
-                  ? 'border-amber-400 text-amber-400 bg-amber-500/10'
-                  : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'
-              }`}
+              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-3 transition-all flex items-center justify-center gap-1.5 border-b-2 font-bold cursor-pointer whitespace-nowrap ${activeTab === 'calculator'
+                ? 'border-amber-400 text-amber-400 bg-amber-500/10'
+                : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+                }`}
             >
               <Calculator className="w-4 h-4 stroke-[2.5]" />
               <span>Pace</span>
@@ -397,408 +394,407 @@ export const RunningView: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 space-y-4">
         {/* TAB 1: TREINOS & METAS */}
         {activeTab === 'workouts' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-              Metas e Planos de Corrida
-            </h2>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Criar Nova Meta</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {runningWorkouts.map(w => {
-              const paceSecs = w.targetPaceSecPerKm || (w.targetDurationSeconds && w.targetDistanceKm ? Math.round(w.targetDurationSeconds / w.targetDistanceKm) : 0);
-              const wLogs = runningHistory.filter(h => h.workoutId === w.id || h.workoutTitle === w.title);
-              const execCount = wLogs.length;
-              const bestLog = wLogs.length > 0 ? [...wLogs].sort((a, b) => a.durationSeconds - b.durationSeconds)[0] : null;
-
-              return (
-                <div
-                  key={w.id}
-                  className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 space-y-3 hover:border-amber-500/30 transition-all group"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold uppercase">
-                          {w.targetMode === 'interval' ? 'Intervalado / Voltas' : w.targetMode === 'distance' ? 'Por Distância' : w.targetMode === 'time' ? 'Por Tempo' : 'Por Pace'}
-                        </span>
-                        {w.isDefault && (
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                            Oficial TAF
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="text-base font-bold text-white mt-1.5 font-['Outfit']">{w.title}</h3>
-                    </div>
-
-                    {!w.isDefault && (
-                      <button
-                        onClick={() => deleteRunningWorkout(w.id)}
-                        className="p-1.5 text-zinc-600 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors"
-                        title="Excluir meta"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Interval Details Badge if interval mode */}
-                  {w.targetMode === 'interval' && w.lapsCount && (
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2 text-xs text-amber-300 font-medium flex items-center justify-between">
-                      <span>🎯 {w.lapsCount} tiros de {w.lapDistanceMeters || 400}m</span>
-                      <span>Rest: {w.restBetweenLapsSeconds || 60}s</span>
-                    </div>
-                  )}
-
-                  {/* Metrics Grid */}
-                  <div className="grid grid-cols-3 gap-2 bg-zinc-950/80 rounded-xl p-2.5 text-center font-mono">
-                    <div>
-                      <span className="text-[10px] text-zinc-500 font-sans block">Distância</span>
-                      <strong className="text-sm font-bold text-white">
-                        {w.targetDistanceKm ? `${w.targetDistanceKm} km` : '--'}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-zinc-500 font-sans block">Tempo Alvo</span>
-                      <strong className="text-sm font-bold text-amber-400">
-                        {w.targetDurationSeconds ? formatSecondsToMMSS(w.targetDurationSeconds) : '--'}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-zinc-500 font-sans block">Pace Meta</span>
-                      <strong className="text-sm font-bold text-cyan-400">
-                        {formatPace(paceSecs)}
-                      </strong>
-                    </div>
-                  </div>
-
-                  {/* History / Record Summary for this Meta */}
-                  <div className="flex items-center justify-between text-[11px] bg-zinc-950/60 border border-zinc-800/80 rounded-xl px-2.5 py-1.5 text-zinc-300 font-mono">
-                    <span className="font-bold text-amber-400">🏆 {execCount} {execCount === 1 ? 'registro' : 'registros'}</span>
-                    {bestLog ? (
-                      <span className="text-emerald-400 font-bold">⚡ Recorde: {formatSecondsToMMSS(bestLog.durationSeconds)} ({formatPace(bestLog.paceSecPerKm)})</span>
-                    ) : (
-                      <span className="text-zinc-500 italic font-sans text-[10px]">Sem treinos salvos</span>
-                    )}
-                  </div>
-
-                  {w.notes && (
-                    <p className="text-xs text-zinc-400 bg-zinc-950/40 p-2 rounded-lg border border-zinc-800/40">
-                      ⚡ {w.notes}
-                    </p>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setSelectedWorkoutId(w.id);
-                      setLogTitle(w.title);
-                      setLogDistanceKm(w.targetDistanceKm ? String(w.targetDistanceKm) : '2.4');
-                      if (w.targetDurationSeconds) {
-                        setLogMins(String(Math.floor(w.targetDurationSeconds / 60)));
-                        setLogSecs(String(w.targetDurationSeconds % 60).padStart(2, '0'));
-                      }
-                      if (w.targetMode === 'interval' && w.lapsCount) {
-                        setIncludeLaps(true);
-                        const initialLaps: ManualLapItem[] = [];
-                        const lapM = String(w.lapDistanceMeters || 400);
-                        const targetSecsVal = w.lapTargetSeconds || 120;
-                        const minsStr = String(Math.floor(targetSecsVal / 60));
-                        const secsStr = String(targetSecsVal % 60).padStart(2, '0');
-
-                        for (let i = 0; i < w.lapsCount; i++) {
-                          initialLaps.push({ mins: minsStr, secs: secsStr, meters: lapM });
-                        }
-                        setManualLaps(initialLaps);
-                      }
-                      setShowLogModal(true);
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-amber-500 text-zinc-300 hover:text-zinc-950 font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <span>Registrar Resultado</span>
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: HISTÓRICO DE CORRIDAS */}
-      {activeTab === 'history' && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-              Histórico de Execuções ({runningHistory.length})
-            </h2>
-
-            <div className="flex items-center gap-2">
-              <select
-                value={historyFilterWorkoutId}
-                onChange={e => setHistoryFilterWorkoutId(e.target.value)}
-                className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
-              >
-                <option value="all">Todas as Metas</option>
-                {runningWorkouts.map(w => (
-                  <option key={w.id} value={w.id}>{w.title}</option>
-                ))}
-              </select>
-
-              {runningHistory.length > 0 && (
-                <button
-                  onClick={clearRunningHistory}
-                  className="text-xs font-bold text-rose-400 hover:underline shrink-0"
-                >
-                  Limpar Histórico
-                </button>
-              )}
-            </div>
-          </div>
-
-          {runningHistory.length === 0 ? (
-            <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl p-8 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
-                <Award className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-white">Nenhum Registro de Corrida</h3>
-              <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-                Registre suas corridas ou tiros de pista para acompanhar a evolução do seu Pace e velocidade em km/h.
-              </p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                Metas e Planos de Corrida
+              </h2>
               <button
-                onClick={() => setShowLogModal(true)}
-                className="px-4 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-lg shadow-amber-500/20"
+                onClick={() => setShowCreateModal(true)}
+                className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <Plus className="w-4 h-4" />
-                <span>Registrar Primeira Corrida</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Criar Nova Meta</span>
               </button>
             </div>
-          ) : (
-            <div className="space-y-2.5">
-              {runningHistory
-                .filter(log => historyFilterWorkoutId === 'all' || log.workoutId === historyFilterWorkoutId || (log.workoutTitle && runningWorkouts.find(w => w.id === historyFilterWorkoutId)?.title === log.workoutTitle))
-                .map(log => {
-                  const isExpanded = expandedLogId === log.id;
-                  const hasLaps = log.laps && log.laps.length > 0;
-                  const linkedWorkout = runningWorkouts.find(w => w.id === log.workoutId || w.title === log.workoutTitle);
-                  const targetDur = linkedWorkout?.targetDurationSeconds;
-                  const diffSecs = targetDur ? log.durationSeconds - targetDur : null;
 
-                  return (
-                    <div
-                      key={log.id}
-                      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 space-y-2 hover:border-zinc-700 transition-all"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="space-y-1 overflow-hidden">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-bold text-white font-['Outfit'] truncate">
-                              {log.workoutTitle}
-                            </span>
-                            <span className="text-[10px] text-zinc-500 font-mono">
-                              {formatDate(log.date)}
-                            </span>
-                            {linkedWorkout && (
-                              <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold">
-                                Meta: {linkedWorkout.title}
-                              </span>
-                            )}
-                            {diffSecs !== null && (
-                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ${
-                                diffSecs <= 0
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                  : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-                              }`}>
-                                {diffSecs <= 0 ? `🟢 Meta Batida! (${Math.abs(diffSecs)}s abaixo)` : `🟡 +${diffSecs}s acima da meta`}
-                              </span>
-                            )}
-                          </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {runningWorkouts.map(w => {
+                const paceSecs = w.targetPaceSecPerKm || (w.targetDurationSeconds && w.targetDistanceKm ? Math.round(w.targetDurationSeconds / w.targetDistanceKm) : 0);
+                const wLogs = runningHistory.filter(h => h.workoutId === w.id || h.workoutTitle === w.title);
+                const execCount = wLogs.length;
+                const bestLog = wLogs.length > 0 ? [...wLogs].sort((a, b) => a.durationSeconds - b.durationSeconds)[0] : null;
 
-                        <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
-                          <span className="text-amber-400 font-bold">
-                            📍 {log.distanceKm} km
+                return (
+                  <div
+                    key={w.id}
+                    className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-4 space-y-3 hover:border-amber-500/30 transition-all group"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold uppercase">
+                            {w.targetMode === 'interval' ? 'Intervalado / Voltas' : w.targetMode === 'distance' ? 'Por Distância' : w.targetMode === 'time' ? 'Por Tempo' : 'Por Pace'}
                           </span>
-                          <span className="text-zinc-300">
-                            ⏱ {formatSecondsToMMSS(log.durationSeconds)}
-                          </span>
-                          <span className="text-cyan-400 font-bold">
-                            ⚡ {formatPace(log.paceSecPerKm)}
-                          </span>
-                          <span className="text-emerald-400 font-bold">
-                            🚀 {log.speedKmH} km/h
-                          </span>
+                          {w.isDefault && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                              Oficial TAF
+                            </span>
+                          )}
                         </div>
-
-                        {log.notes && (
-                          <p className="text-[11px] text-zinc-400 pt-0.5 truncate">{log.notes}</p>
-                        )}
+                        <h3 className="text-base font-bold text-white mt-1.5 font-['Outfit']">{w.title}</h3>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
-                        {hasLaps && (
-                          <button
-                            onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                            className="p-1.5 text-amber-400 hover:bg-zinc-800 rounded-xl transition-colors flex items-center gap-1 text-[11px] font-mono font-bold"
-                            title="Ver detalhamento por voltas"
-                          >
-                            <span>{log.laps?.length} voltas</span>
-                            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                          </button>
-                        )}
-
+                      {!w.isDefault && (
                         <button
-                          onClick={() => deleteRunningLog(log.id)}
-                          className="p-2 text-zinc-600 hover:text-rose-400 rounded-xl hover:bg-zinc-800 transition-colors"
-                          title="Excluir registro"
+                          onClick={() => deleteRunningWorkout(w.id)}
+                          className="p-1.5 text-zinc-600 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors"
+                          title="Excluir meta"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
+                      )}
+                    </div>
+
+                    {/* Interval Details Badge if interval mode */}
+                    {w.targetMode === 'interval' && w.lapsCount && (
+                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2 text-xs text-amber-300 font-medium flex items-center justify-between">
+                        <span>🎯 {w.lapsCount} tiros de {w.lapDistanceMeters || 400}m</span>
+                        <span>Rest: {w.restBetweenLapsSeconds || 60}s</span>
+                      </div>
+                    )}
+
+                    {/* Metrics Grid */}
+                    <div className="grid grid-cols-3 gap-2 bg-zinc-950/80 rounded-xl p-2.5 text-center font-mono">
+                      <div>
+                        <span className="text-[10px] text-zinc-500 font-sans block">Distância</span>
+                        <strong className="text-sm font-bold text-white">
+                          {w.targetDistanceKm ? `${w.targetDistanceKm} km` : '--'}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] text-zinc-500 font-sans block">Tempo Alvo</span>
+                        <strong className="text-sm font-bold text-amber-400">
+                          {w.targetDurationSeconds ? formatSecondsToMMSS(w.targetDurationSeconds) : '--'}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] text-zinc-500 font-sans block">Pace Meta</span>
+                        <strong className="text-sm font-bold text-cyan-400">
+                          {formatPace(paceSecs)}
+                        </strong>
                       </div>
                     </div>
 
-                    {/* Expanded Laps Details */}
-                    {isExpanded && hasLaps && (
-                      <div className="pt-2 border-t border-zinc-800/80 space-y-1 font-mono text-[11px]">
-                        <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">
-                          Detalhamento de Voltas / Tiros Gravados
-                        </span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
-                          {log.laps?.map(lap => (
-                            <div
-                              key={lap.lapNumber}
-                              className="bg-zinc-950 px-2.5 py-1.5 rounded-lg border border-zinc-800 flex items-center justify-between"
-                            >
-                              <span className="text-amber-400 font-bold">Volta #{lap.lapNumber} ({lap.distanceMeters}m)</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-zinc-200">{formatSecondsToMMSS(lap.durationSeconds)}</span>
-                                <span className="text-cyan-400 font-bold">{formatPace(lap.paceSecPerKm)}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                    {/* History / Record Summary for this Meta */}
+                    <div className="flex items-center justify-between text-[11px] bg-zinc-950/60 border border-zinc-800/80 rounded-xl px-2.5 py-1.5 text-zinc-300 font-mono">
+                      <span className="font-bold text-amber-400">🏆 {execCount} {execCount === 1 ? 'registro' : 'registros'}</span>
+                      {bestLog ? (
+                        <span className="text-emerald-400 font-bold">⚡ Recorde: {formatSecondsToMMSS(bestLog.durationSeconds)} ({formatPace(bestLog.paceSecPerKm)})</span>
+                      ) : (
+                        <span className="text-zinc-500 italic font-sans text-[10px]">Sem treinos salvos</span>
+                      )}
+                    </div>
+
+                    {w.notes && (
+                      <p className="text-xs text-zinc-400 bg-zinc-950/40 p-2 rounded-lg border border-zinc-800/40">
+                        ⚡ {w.notes}
+                      </p>
                     )}
+
+                    <button
+                      onClick={() => {
+                        setSelectedWorkoutId(w.id);
+                        setLogTitle(w.title);
+                        setLogDistanceKm(w.targetDistanceKm ? String(w.targetDistanceKm) : '2.4');
+                        if (w.targetDurationSeconds) {
+                          setLogMins(String(Math.floor(w.targetDurationSeconds / 60)));
+                          setLogSecs(String(w.targetDurationSeconds % 60).padStart(2, '0'));
+                        }
+                        if (w.targetMode === 'interval' && w.lapsCount) {
+                          setIncludeLaps(true);
+                          const initialLaps: ManualLapItem[] = [];
+                          const lapM = String(w.lapDistanceMeters || 400);
+                          const targetSecsVal = w.lapTargetSeconds || 120;
+                          const minsStr = String(Math.floor(targetSecsVal / 60));
+                          const secsStr = String(targetSecsVal % 60).padStart(2, '0');
+
+                          for (let i = 0; i < w.lapsCount; i++) {
+                            initialLaps.push({ mins: minsStr, secs: secsStr, meters: lapM });
+                          }
+                          setManualLaps(initialLaps);
+                        }
+                        setShowLogModal(true);
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-zinc-800 hover:bg-amber-500 text-zinc-300 hover:text-zinc-950 font-bold text-xs transition-all flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <span>Registrar Resultado</span>
+                      <ArrowUpRight className="w-4 h-4" />
+                    </button>
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 3: CALCULADORA DE PACE */}
-      {activeTab === 'calculator' && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-5">
-          <div className="flex items-center gap-3 border-b border-zinc-800 pb-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold">
-              <Calculator className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white">Calculadora Interativa de Pace, Distância e Tempo</h2>
-              <p className="text-xs text-zinc-400">Preencha quaisquer 2 campos e o 3º será calculado automaticamente.</p>
-            </div>
           </div>
+        )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Input Pace */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-amber-400">⚡ Ritmo / Pace (min/km)</label>
+        {/* TAB 2: HISTÓRICO DE CORRIDAS */}
+        {activeTab === 'history' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                Histórico de Execuções ({runningHistory.length})
+              </h2>
+
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  value={calcPaceMins}
-                  onChange={e => handleCalcPaceChange(e.target.value, calcPaceSecsInput)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 font-mono text-sm font-bold focus:border-amber-400 focus:outline-none"
-                  placeholder="Min"
-                />
-                <span className="text-zinc-500 font-bold">:</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="59"
-                  value={calcPaceSecsInput}
-                  onChange={e => handleCalcPaceChange(calcPaceMins, e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 font-mono text-sm font-bold focus:border-amber-400 focus:outline-none"
-                  placeholder="Seg"
-                />
+                <select
+                  value={historyFilterWorkoutId}
+                  onChange={e => setHistoryFilterWorkoutId(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
+                >
+                  <option value="all">Todas as Metas</option>
+                  {runningWorkouts.map(w => (
+                    <option key={w.id} value={w.id}>{w.title}</option>
+                  ))}
+                </select>
+
+                {runningHistory.length > 0 && (
+                  <button
+                    onClick={clearRunningHistory}
+                    className="text-xs font-bold text-rose-400 hover:underline shrink-0"
+                  >
+                    Limpar Histórico
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Input Distância */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-white">📍 Distância (km)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={calcDistKm}
-                onChange={e => handleCalcDistChange(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white font-mono text-sm font-bold focus:border-amber-400 focus:outline-none"
-                placeholder="ex: 2.4"
-              />
+            {runningHistory.length === 0 ? (
+              <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl p-8 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
+                  <Award className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-white">Nenhum Registro de Corrida</h3>
+                <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+                  Registre suas corridas ou tiros de pista para acompanhar a evolução do seu Pace e velocidade em km/h.
+                </p>
+                <button
+                  onClick={() => setShowLogModal(true)}
+                  className="px-4 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-lg shadow-amber-500/20"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Registrar Primeira Corrida</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {runningHistory
+                  .filter(log => historyFilterWorkoutId === 'all' || log.workoutId === historyFilterWorkoutId || (log.workoutTitle && runningWorkouts.find(w => w.id === historyFilterWorkoutId)?.title === log.workoutTitle))
+                  .map(log => {
+                    const isExpanded = expandedLogId === log.id;
+                    const hasLaps = log.laps && log.laps.length > 0;
+                    const linkedWorkout = runningWorkouts.find(w => w.id === log.workoutId || w.title === log.workoutTitle);
+                    const targetDur = linkedWorkout?.targetDurationSeconds;
+                    const diffSecs = targetDur ? log.durationSeconds - targetDur : null;
+
+                    return (
+                      <div
+                        key={log.id}
+                        className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 space-y-2 hover:border-zinc-700 transition-all"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="space-y-1 overflow-hidden">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-bold text-white font-['Outfit'] truncate">
+                                {log.workoutTitle}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 font-mono">
+                                {formatDate(log.date)}
+                              </span>
+                              {linkedWorkout && (
+                                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold">
+                                  Meta: {linkedWorkout.title}
+                                </span>
+                              )}
+                              {diffSecs !== null && (
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ${diffSecs <= 0
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                  : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                  }`}>
+                                  {diffSecs <= 0 ? `🟢 Meta Batida! (${Math.abs(diffSecs)}s abaixo)` : `🟡 +${diffSecs}s acima da meta`}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+                              <span className="text-amber-400 font-bold">
+                                📍 {log.distanceKm} km
+                              </span>
+                              <span className="text-zinc-300">
+                                ⏱ {formatSecondsToMMSS(log.durationSeconds)}
+                              </span>
+                              <span className="text-cyan-400 font-bold">
+                                ⚡ {formatPace(log.paceSecPerKm)}
+                              </span>
+                              <span className="text-emerald-400 font-bold">
+                                🚀 {log.speedKmH} km/h
+                              </span>
+                            </div>
+
+                            {log.notes && (
+                              <p className="text-[11px] text-zinc-400 pt-0.5 truncate">{log.notes}</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {hasLaps && (
+                              <button
+                                onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                                className="p-1.5 text-amber-400 hover:bg-zinc-800 rounded-xl transition-colors flex items-center gap-1 text-[11px] font-mono font-bold"
+                                title="Ver detalhamento por voltas"
+                              >
+                                <span>{log.laps?.length} voltas</span>
+                                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => deleteRunningLog(log.id)}
+                              className="p-2 text-zinc-600 hover:text-rose-400 rounded-xl hover:bg-zinc-800 transition-colors"
+                              title="Excluir registro"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Expanded Laps Details */}
+                        {isExpanded && hasLaps && (
+                          <div className="pt-2 border-t border-zinc-800/80 space-y-1 font-mono text-[11px]">
+                            <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">
+                              Detalhamento de Voltas / Tiros Gravados
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                              {log.laps?.map(lap => (
+                                <div
+                                  key={lap.lapNumber}
+                                  className="bg-zinc-950 px-2.5 py-1.5 rounded-lg border border-zinc-800 flex items-center justify-between"
+                                >
+                                  <span className="text-amber-400 font-bold">Volta #{lap.lapNumber} ({lap.distanceMeters}m)</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-zinc-200">{formatSecondsToMMSS(lap.durationSeconds)}</span>
+                                    <span className="text-cyan-400 font-bold">{formatPace(lap.paceSecPerKm)}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: CALCULADORA DE PACE */}
+        {activeTab === 'calculator' && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-5">
+            <div className="flex items-center gap-3 border-b border-zinc-800 pb-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold">
+                <Calculator className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">Calculadora Interativa de Pace, Distância e Tempo</h2>
+                <p className="text-xs text-zinc-400">Preencha quaisquer 2 campos e o 3º será calculado automaticamente.</p>
+              </div>
             </div>
 
-            {/* Input Tempo (Minutos e Segundos) */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-cyan-400">⌛ Tempo Gasto (Min : Seg)</label>
-              <div className="flex items-center gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Input Pace */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-amber-400">⚡ Ritmo / Pace (min/km)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={calcPaceMins}
+                    onChange={e => handleCalcPaceChange(e.target.value, calcPaceSecsInput)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 font-mono text-sm font-bold focus:border-amber-400 focus:outline-none"
+                    placeholder="Min"
+                  />
+                  <span className="text-zinc-500 font-bold">:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={calcPaceSecsInput}
+                    onChange={e => handleCalcPaceChange(calcPaceMins, e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 font-mono text-sm font-bold focus:border-amber-400 focus:outline-none"
+                    placeholder="Seg"
+                  />
+                </div>
+              </div>
+
+              {/* Input Distância */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-white">📍 Distância (km)</label>
                 <input
                   type="number"
-                  min="0"
-                  value={calcMins}
-                  onChange={e => handleCalcTimeChange(e.target.value, calcSecs)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-cyan-400 font-mono text-sm font-bold focus:border-cyan-400 focus:outline-none"
-                  placeholder="Min"
+                  step="0.01"
+                  min="0.01"
+                  value={calcDistKm}
+                  onChange={e => handleCalcDistChange(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white font-mono text-sm font-bold focus:border-amber-400 focus:outline-none"
+                  placeholder="ex: 2.4"
                 />
-                <span className="text-zinc-500 font-bold">:</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="59"
-                  value={calcSecs}
-                  onChange={e => handleCalcTimeChange(calcMins, e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-cyan-400 font-mono text-sm font-bold focus:border-cyan-400 focus:outline-none"
-                  placeholder="Seg"
-                />
+              </div>
+
+              {/* Input Tempo (Minutos e Segundos) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-cyan-400">⌛ Tempo Gasto (Min : Seg)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={calcMins}
+                    onChange={e => handleCalcTimeChange(e.target.value, calcSecs)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-cyan-400 font-mono text-sm font-bold focus:border-cyan-400 focus:outline-none"
+                    placeholder="Min"
+                  />
+                  <span className="text-zinc-500 font-bold">:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={calcSecs}
+                    onChange={e => handleCalcTimeChange(calcMins, e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-cyan-400 font-mono text-sm font-bold focus:border-cyan-400 focus:outline-none"
+                    placeholder="Seg"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Result Highlight Box */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-gradient-to-br from-amber-500/10 via-zinc-950 to-cyan-500/10 border border-amber-500/30 rounded-2xl p-4 text-center">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Ritmo (Pace Médio)</span>
+                <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono tracking-tight">
+                  {formatPace(calcPaceSecs)}
+                </span>
+              </div>
+
+              <div className="space-y-1 border-l border-zinc-800 pl-3">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Tempo Total</span>
+                <span className="text-2xl sm:text-3xl font-black text-cyan-400 font-mono tracking-tight">
+                  {formatSecondsToMMSS(calcTotalSecs)}
+                </span>
+              </div>
+
+              <div className="space-y-1 border-l border-zinc-800 pl-3 col-span-2 sm:col-span-1">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Velocidade Média</span>
+                <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">
+                  {calcSpeed} <span className="text-xs font-normal text-zinc-400">km/h</span>
+                </span>
               </div>
             </div>
           </div>
-
-          {/* Result Highlight Box */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-gradient-to-br from-amber-500/10 via-zinc-950 to-cyan-500/10 border border-amber-500/30 rounded-2xl p-4 text-center">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Ritmo (Pace Médio)</span>
-              <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono tracking-tight">
-                {formatPace(calcPaceSecs)}
-              </span>
-            </div>
-
-            <div className="space-y-1 border-l border-zinc-800 pl-3">
-              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Tempo Total</span>
-              <span className="text-2xl sm:text-3xl font-black text-cyan-400 font-mono tracking-tight">
-                {formatSecondsToMMSS(calcTotalSecs)}
-              </span>
-            </div>
-
-            <div className="space-y-1 border-l border-zinc-800 pl-3 col-span-2 sm:col-span-1">
-              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Velocidade Média</span>
-              <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">
-                {calcSpeed} <span className="text-xs font-normal text-zinc-400">km/h</span>
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
 
       {/* MODAL: CRIAR NOVA META DE CORRIDA */}
       {showCreateModal && (
@@ -1088,14 +1084,12 @@ export const RunningView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIncludeLaps(!includeLaps)}
-                className={`w-10 h-5 rounded-full transition-colors relative ${
-                  includeLaps ? 'bg-amber-500' : 'bg-zinc-800'
-                }`}
+                className={`w-10 h-5 rounded-full transition-colors relative ${includeLaps ? 'bg-amber-500' : 'bg-zinc-800'
+                  }`}
               >
                 <div
-                  className={`w-4 h-4 rounded-full bg-zinc-950 absolute top-0.5 transition-transform ${
-                    includeLaps ? 'right-0.5' : 'left-0.5'
-                  }`}
+                  className={`w-4 h-4 rounded-full bg-zinc-950 absolute top-0.5 transition-transform ${includeLaps ? 'right-0.5' : 'left-0.5'
+                    }`}
                 />
               </button>
             </div>

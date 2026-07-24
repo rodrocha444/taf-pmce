@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Volume2, Mic, Sun, ArrowLeft, Play, FastForward,
+  Volume2, Mic, Sun, Play, FastForward,
   Cloud, CloudUpload, CloudDownload, RefreshCw, Copy, Check, Download, Upload 
 } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
@@ -92,20 +92,10 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
+    <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 space-y-6">
       {/* Top Header */}
-      <div className="flex items-center justify-between gap-3">
-        <button
-          onClick={() => navigate('/')}
-          className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white flex items-center gap-1.5 text-xs font-semibold"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Voltar</span>
-        </button>
-
-        <h1 className="text-xl font-bold text-white font-['Outfit']">Configurações</h1>
-
-        <div className="w-20" />
+      <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
+        <h1 className="text-xl font-bold text-white font-['Outfit'] tracking-tight">Configurações do Aplicativo</h1>
       </div>
 
       {/* Settings Options List */}

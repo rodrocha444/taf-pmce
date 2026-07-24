@@ -21,12 +21,12 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const variantStyles: Record<ButtonVariant, string> = {
-    amber: 'bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-md shadow-amber-500/20 font-bold',
-    zinc: 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-semibold',
-    rose: 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-semibold',
-    purple: 'bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-600/30 font-bold',
-    emerald: 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-semibold',
-    ghost: 'text-zinc-400 hover:text-white hover:bg-zinc-800/80 font-medium'
+    amber: 'bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-zinc-950 font-black shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-[1.02]',
+    zinc: 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/80 hover:border-zinc-600 font-bold shadow-md hover:scale-[1.02]',
+    rose: 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 font-bold shadow-md shadow-rose-500/10 hover:scale-[1.02]',
+    purple: 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/30 hover:shadow-purple-600/50 font-black hover:scale-[1.02]',
+    emerald: 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 font-bold shadow-md shadow-emerald-500/10 hover:scale-[1.02]',
+    ghost: 'text-zinc-400 hover:text-white hover:bg-zinc-800/60 font-semibold'
   };
 
   const sizeStyles: Record<ButtonSize, string> = {
@@ -39,7 +39,7 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <button
       disabled={disabled}
-      className={`inline-flex items-center justify-center transition-all active:scale-95 cursor-pointer disabled:opacity-40 disabled:pointer-events-none disabled:active:scale-100 ${
+      className={`inline-flex items-center justify-center transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-40 disabled:pointer-events-none disabled:active:scale-100 ${
         variantStyles[variant]
       } ${sizeStyles[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
       {...props}

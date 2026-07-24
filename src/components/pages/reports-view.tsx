@@ -40,7 +40,7 @@ export const ReportsView: React.FC = () => {
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-5 space-y-5 pb-28">
+    <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 space-y-5">
 
 
       {/* Overview Cards Grid */}

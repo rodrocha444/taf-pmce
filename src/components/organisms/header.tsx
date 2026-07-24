@@ -35,11 +35,14 @@ export const Header: React.FC = () => {
   const isSettingsActive = location.pathname === '/settings';
 
   return (
-    <header className="sticky top-0 z-30 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 header-safe">
-      <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+    <header className="fixed top-0 left-0 right-0 z-30 bg-zinc-950/85 backdrop-blur-xl border-b border-zinc-800/80 px-4 py-3 header-safe shadow-lg shadow-black/30">
+      {/* Magical Top Ambient Glow Line */}
+      <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent opacity-80" />
+
+      <div className="w-full max-w-4xl mx-auto flex items-center justify-between gap-3">
         {/* Logo / App Name */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center text-zinc-950 font-bold shadow-lg shadow-amber-500/20 group-hover:scale-105 transition-transform">
+          <div className="w-9.5 h-9.5 rounded-xl bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-300 flex items-center justify-center text-zinc-950 font-bold shadow-lg shadow-amber-500/30 group-hover:shadow-amber-500/50 group-hover:scale-105 transition-all duration-300">
             <Dumbbell className="w-5 h-5 stroke-[2.5]" />
           </div>
           <div>
@@ -80,7 +83,6 @@ export const Header: React.FC = () => {
                 )}
               </span>
             </div>
-            <p className="text-[10px] text-zinc-400 font-medium">Treinamento e Preparação TAF</p>
           </div>
         </Link>
 

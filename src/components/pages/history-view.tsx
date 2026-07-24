@@ -146,7 +146,7 @@ export const HistoryView: React.FC = () => {
   const totalSecondsTrained = history.reduce((acc, h) => acc + (h.realDurationSeconds || h.durationSeconds || 0), 0);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
+    <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 space-y-6">
       {/* Action Bar (Limpar se houver historico) */}
       {history.length > 0 && (
         <div className="flex items-center justify-end">

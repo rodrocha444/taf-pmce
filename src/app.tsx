@@ -16,7 +16,6 @@ import {
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const isHeaderHidden = location.pathname === '/player' || location.pathname === '/edit';
-  const isPlayer = location.pathname === '/player';
 
   useEffect(() => {
     const cleanup = setupAutoSyncLifecycle();
@@ -26,7 +25,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-amber-500 selection:text-zinc-950">
       <Header />
-      <main className={`flex-1 px-safe ${isHeaderHidden && !isPlayer ? 'pt-safe-top' : 'pt-0'}`}>
+      <main className={`flex-1 px-safe ${isHeaderHidden ? 'pt-safe-top' : 'pt-header-offset'}`}>
         {children}
       </main>
       <BottomNav />

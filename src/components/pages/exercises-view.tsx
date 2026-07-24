@@ -114,7 +114,7 @@ export const ExercisesView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
+    <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 space-y-6">
       {/* Exercises List Cards */}
 
       {/* Exercises List Cards */}

@@ -133,7 +133,7 @@ export const EditView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 pb-28">
+    <div className="max-w-4xl mx-auto px-4 pt-4 pb-28 space-y-6">
       {/* Top Header: Voltar | Nome do Treino | Novo Exercício */}
       <div className="flex items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
         <Button
