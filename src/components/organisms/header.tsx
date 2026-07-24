@@ -1,14 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Dumbbell, Plus, Settings } from 'lucide-react';
+import { Dumbbell, Plus, Settings, Cloud, RefreshCw } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
 import { Button } from '../atoms';
+import { getSyncStatus, subscribeSyncStatus, uploadToCloud, getStoredSyncId, type SyncState } from '../../services/cloud-sync';
 
 export const Header: React.FC = () => {
   const location = useLocation();
   const setShowCreateWorkoutModal = useWorkoutStore(state => state.setShowCreateWorkoutModal);
   const setShowCreateExerciseModal = useWorkoutStore(state => state.setShowCreateExerciseModal);
   const setShowManualHistoryModal = useWorkoutStore(state => state.setShowManualHistoryModal);
+
+  const [syncState, setSyncState] = useState<SyncState>(getSyncStatus());
+
+  useEffect(() => {
+    return subscribeSyncStatus(state => setSyncState(state));
+  }, []);
+
+  const handleManualSync = () => {
+    const syncId = getStoredSyncId();
+    if (syncId) {
+      uploadToCloud(syncId);
+    }
+  };
 
   // Hide top header in active player fullscreen mode or edit view
   if (location.pathname === '/player' || location.pathname === '/edit') {
@@ -33,9 +47,37 @@ export const Header: React.FC = () => {
               <span className="font-black text-base text-white tracking-tight leading-none font-['Outfit']">
                 TAF <span className="text-amber-400">PMCE</span>
               </span>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                PWA
+              
+              {/* Cloud Sync Status Icon Only */}
+              <span
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleManualSync();
+                }}
+                className={`p-1 rounded-md border flex items-center justify-center cursor-pointer transition-all ${
+                  syncState === 'syncing'
+                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse'
+                    : syncState === 'synced'
+                    ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20'
+                    : syncState === 'error'
+                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                    : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white'
+                }`}
+                title={
+                  syncState === 'synced'
+                    ? 'Sincronizado na Nuvem. Clique para atualizar.'
+                    : syncState === 'syncing'
+                    ? 'Sincronizando com a nuvem...'
+                    : 'Clique para sincronizar na nuvem'
+                }
+              >
+                {syncState === 'syncing' ? (
+                  <RefreshCw className="w-3 h-3 animate-spin text-amber-400" />
+                ) : syncState === 'synced' ? (
+                  <Cloud className="w-3 h-3 text-cyan-400" />
+                ) : (
+                  <Cloud className="w-3 h-3 text-zinc-400" />
+                )}
               </span>
             </div>
             <p className="text-[10px] text-zinc-400 font-medium">Treinamento e Preparação TAF</p>

@@ -131,6 +131,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
         prepCountdownSeconds: 5,
         keepScreenOn: true,
         autoAdvanceBlocks: true,
+        autoCloudSyncEnabled: true,
         volume: 1
       },
       runningWorkouts: [],

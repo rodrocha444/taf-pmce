@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { BottomNav, Header } from './components/organisms';
+import { setupAutoSyncLifecycle } from './services/cloud-sync';
 import {
   WorkoutsView,
   ExercisesView,
@@ -16,6 +17,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const isHeaderHidden = location.pathname === '/player' || location.pathname === '/edit';
   const isPlayer = location.pathname === '/player';
+
+  useEffect(() => {
+    const cleanup = setupAutoSyncLifecycle();
+    return cleanup;
+  }, []);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-amber-500 selection:text-zinc-950">

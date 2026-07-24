@@ -68,6 +68,7 @@ export interface UserSettings {
   prepCountdownSeconds: number; // e.g. 5 seconds preparation countdown
   keepScreenOn: boolean;
   autoAdvanceBlocks: boolean; // true = automatically advance to next exercise, false = pause and wait for tap
+  autoCloudSyncEnabled?: boolean; // true = auto sync on open/close app
   volume: number; // 0 to 1
 }
 
@@ -115,6 +116,7 @@ export interface RunningLapDetail {
 
 export interface RunningLog {
   id: string;
+  workoutId?: string;           // ID do treino/meta de corrida atrelado
   workoutTitle: string;
   date: string;
   distanceKm: number;          // e.g. 2.4 km

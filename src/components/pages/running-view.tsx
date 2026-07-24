@@ -36,9 +36,12 @@ export const RunningView: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [workoutTitle, setWorkoutTitle] = useState('');
   const [targetMode, setTargetMode] = useState<RunningTargetMode>('distance');
+  const [targetPaceMins, setTargetPaceMins] = useState('5');
+  const [targetPaceSecs, setTargetPaceSecs] = useState('00');
   const [targetDistanceKm, setTargetDistanceKm] = useState('2.4');
   const [targetMins, setTargetMins] = useState('12');
-  const [targetSecs, setTargetSecs] = useState('0');
+  const [targetSecs, setTargetSecs] = useState('00');
+  const [modalLastChanged, setModalLastChanged] = useState<'pace' | 'dist' | 'time'>('time');
   
   // Interval specific fields
   const [lapsCountInput, setLapsCountInput] = useState('6');
@@ -51,11 +54,13 @@ export const RunningView: React.FC = () => {
 
   // Register Log Modal state
   const [showLogModal, setShowLogModal] = useState(false);
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>('');
   const [logTitle, setLogTitle] = useState('Corrida TAF PMCE (2.400m)');
   const [logDistanceKm, setLogDistanceKm] = useState('2.4');
   const [logMins, setLogMins] = useState('11');
   const [logSecs, setLogSecs] = useState('45');
   const [logNotes, setLogNotes] = useState('');
+  const [historyFilterWorkoutId, setHistoryFilterWorkoutId] = useState<string>('all');
 
   // Manual Laps state for Register Log Modal
   const [includeLaps, setIncludeLaps] = useState(false);
@@ -64,10 +69,141 @@ export const RunningView: React.FC = () => {
     { mins: '2', secs: '00', meters: '400' }
   ]);
 
-  // Interactive Calculator state
+  // Interactive Calculator state (3 mutually dependent fields)
+  const [calcPaceMins, setCalcPaceMins] = useState('5');
+  const [calcPaceSecsInput, setCalcPaceSecsInput] = useState('00');
   const [calcDistKm, setCalcDistKm] = useState('2.4');
   const [calcMins, setCalcMins] = useState('12');
-  const [calcSecs, setCalcSecs] = useState('0');
+  const [calcSecs, setCalcSecs] = useState('00');
+  const [calcLastChanged, setCalcLastChanged] = useState<'pace' | 'dist' | 'time'>('time');
+
+  // Modal 3-field dependency handlers (Pace, Distância, Tempo)
+  const handleModalPaceChange = (newMins: string, newSecs: string) => {
+    setTargetPaceMins(newMins);
+    setTargetPaceSecs(newSecs);
+
+    const pSecs = (parseInt(newMins) || 0) * 60 + (parseInt(newSecs) || 0);
+    const dKm = parseFloat(targetDistanceKm) || 0;
+    const tSecs = (parseInt(targetMins) || 0) * 60 + (parseInt(targetSecs) || 0);
+
+    if (pSecs > 0) {
+      if (modalLastChanged === 'time' && tSecs > 0) {
+        const newDist = tSecs / pSecs;
+        setTargetDistanceKm(newDist.toFixed(2));
+      } else if (dKm > 0) {
+        const newTotalSecs = Math.round(dKm * pSecs);
+        setTargetMins(Math.floor(newTotalSecs / 60).toString());
+        setTargetSecs((newTotalSecs % 60).toString().padStart(2, '0'));
+      }
+    }
+    setModalLastChanged('pace');
+  };
+
+  const handleModalDistChange = (newDistStr: string) => {
+    setTargetDistanceKm(newDistStr);
+
+    const dKm = parseFloat(newDistStr) || 0;
+    const pSecs = (parseInt(targetPaceMins) || 0) * 60 + (parseInt(targetPaceSecs) || 0);
+    const tSecs = (parseInt(targetMins) || 0) * 60 + (parseInt(targetSecs) || 0);
+
+    if (dKm > 0) {
+      if (modalLastChanged === 'pace' && pSecs > 0) {
+        const newTotalSecs = Math.round(dKm * pSecs);
+        setTargetMins(Math.floor(newTotalSecs / 60).toString());
+        setTargetSecs((newTotalSecs % 60).toString().padStart(2, '0'));
+      } else if (tSecs > 0) {
+        const newPaceSecs = Math.round(tSecs / dKm);
+        setTargetPaceMins(Math.floor(newPaceSecs / 60).toString());
+        setTargetPaceSecs((newPaceSecs % 60).toString().padStart(2, '0'));
+      }
+    }
+    setModalLastChanged('dist');
+  };
+
+  const handleModalTimeChange = (newMins: string, newSecs: string) => {
+    setTargetMins(newMins);
+    setTargetSecs(newSecs);
+
+    const tSecs = (parseInt(newMins) || 0) * 60 + (parseInt(newSecs) || 0);
+    const dKm = parseFloat(targetDistanceKm) || 0;
+    const pSecs = (parseInt(targetPaceMins) || 0) * 60 + (parseInt(targetPaceSecs) || 0);
+
+    if (tSecs > 0) {
+      if (modalLastChanged === 'pace' && pSecs > 0) {
+        const newDist = tSecs / pSecs;
+        setTargetDistanceKm(newDist.toFixed(2));
+      } else if (dKm > 0) {
+        const newPaceSecs = Math.round(tSecs / dKm);
+        setTargetPaceMins(Math.floor(newPaceSecs / 60).toString());
+        setTargetPaceSecs((newPaceSecs % 60).toString().padStart(2, '0'));
+      }
+    }
+    setModalLastChanged('time');
+  };
+
+  // Calculator 3-field dependency handlers (Pace, Distância, Tempo)
+  const handleCalcPaceChange = (newMins: string, newSecs: string) => {
+    setCalcPaceMins(newMins);
+    setCalcPaceSecsInput(newSecs);
+
+    const pSecs = (parseInt(newMins) || 0) * 60 + (parseInt(newSecs) || 0);
+    const dKm = parseFloat(calcDistKm) || 0;
+    const tSecs = (parseInt(calcMins) || 0) * 60 + (parseInt(calcSecs) || 0);
+
+    if (pSecs > 0) {
+      if (calcLastChanged === 'time' && tSecs > 0) {
+        const newDist = tSecs / pSecs;
+        setCalcDistKm(newDist.toFixed(2));
+      } else if (dKm > 0) {
+        const newTotalSecs = Math.round(dKm * pSecs);
+        setCalcMins(Math.floor(newTotalSecs / 60).toString());
+        setCalcSecs((newTotalSecs % 60).toString().padStart(2, '0'));
+      }
+    }
+    setCalcLastChanged('pace');
+  };
+
+  const handleCalcDistChange = (newDistStr: string) => {
+    setCalcDistKm(newDistStr);
+
+    const dKm = parseFloat(newDistStr) || 0;
+    const pSecs = (parseInt(calcPaceMins) || 0) * 60 + (parseInt(calcPaceSecsInput) || 0);
+    const tSecs = (parseInt(calcMins) || 0) * 60 + (parseInt(calcSecs) || 0);
+
+    if (dKm > 0) {
+      if (calcLastChanged === 'pace' && pSecs > 0) {
+        const newTotalSecs = Math.round(dKm * pSecs);
+        setCalcMins(Math.floor(newTotalSecs / 60).toString());
+        setCalcSecs((newTotalSecs % 60).toString().padStart(2, '0'));
+      } else if (tSecs > 0) {
+        const newPaceSecs = Math.round(tSecs / dKm);
+        setCalcPaceMins(Math.floor(newPaceSecs / 60).toString());
+        setCalcPaceSecsInput((newPaceSecs % 60).toString().padStart(2, '0'));
+      }
+    }
+    setCalcLastChanged('dist');
+  };
+
+  const handleCalcTimeChange = (newMins: string, newSecs: string) => {
+    setCalcMins(newMins);
+    setCalcSecs(newSecs);
+
+    const tSecs = (parseInt(newMins) || 0) * 60 + (parseInt(newSecs) || 0);
+    const dKm = parseFloat(calcDistKm) || 0;
+    const pSecs = (parseInt(calcPaceMins) || 0) * 60 + (parseInt(calcPaceSecsInput) || 0);
+
+    if (tSecs > 0) {
+      if (calcLastChanged === 'pace' && pSecs > 0) {
+        const newDist = tSecs / pSecs;
+        setCalcDistKm(newDist.toFixed(2));
+      } else if (dKm > 0) {
+        const newPaceSecs = Math.round(tSecs / dKm);
+        setCalcPaceMins(Math.floor(newPaceSecs / 60).toString());
+        setCalcPaceSecsInput((newPaceSecs % 60).toString().padStart(2, '0'));
+      }
+    }
+    setCalcLastChanged('time');
+  };
 
   // Handle Add Manual Lap Item
   const handleAddManualLapItem = () => {
@@ -96,7 +232,8 @@ export const RunningView: React.FC = () => {
       const lapTargetSecsVal = (parseInt(lapTargetMins) || 0) * 60 + (parseInt(lapTargetSecs) || 0);
       const restSecsVal = parseInt(restBetweenLapsSecsInput) || 60;
       const totalKm = (laps * lapMeters) / 1000;
-      const totalSecsVal = (lapTargetSecsVal * laps) + (restSecsVal * Math.max(0, laps - 1));
+      // Tempo de corrida puro (sem adicionar o tempo de descanso estático)
+      const totalSecsVal = lapTargetSecsVal * laps;
 
       addRunningWorkout({
         title: workoutTitle.trim(),
@@ -108,7 +245,7 @@ export const RunningView: React.FC = () => {
         lapDistanceMeters: lapMeters,
         lapTargetSeconds: lapTargetSecsVal,
         restBetweenLapsSeconds: restSecsVal,
-        notes: workoutNotes.trim() || `${laps} tiros de ${lapMeters}m com ${restSecsVal}s de descanso`
+        notes: workoutNotes.trim() || `${laps} tiros de ${lapMeters}m (descanso: ${restSecsVal}s)`
       });
     } else {
       const distKm = parseFloat(targetDistanceKm) || 2.4;
@@ -169,6 +306,7 @@ export const RunningView: React.FC = () => {
     if (finalDistKm <= 0 || finalDurSecs <= 0) return;
 
     addRunningLog({
+      workoutId: selectedWorkoutId || undefined,
       workoutTitle: logTitle.trim() || 'Corrida TAF',
       date: new Date().toISOString(),
       distanceKm: finalDistKm,
@@ -185,63 +323,80 @@ export const RunningView: React.FC = () => {
   // Calculated values for interactive calculator
   const calcDistNum = parseFloat(calcDistKm) || 0;
   const calcTotalSecs = (parseInt(calcMins) || 0) * 60 + (parseInt(calcSecs) || 0);
-  const calcPaceSecs = calculatePaceSecPerKm(calcDistNum, calcTotalSecs);
+  const calcPaceSecs = (parseInt(calcPaceMins) || 0) * 60 + (parseInt(calcPaceSecsInput) || 0) || calculatePaceSecPerKm(calcDistNum, calcTotalSecs);
   const calcSpeed = calculateSpeedKmH(calcDistNum, calcTotalSecs);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-5 space-y-4 pb-28">
-      {/* Top Action & Tab Selectors */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex-1 grid grid-cols-3 gap-1 p-1 bg-zinc-900 border border-zinc-800/80 rounded-2xl text-xs font-bold">
-          <button
-            onClick={() => setActiveTab('workouts')}
-            className={`py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'workouts'
-                ? 'bg-amber-500 text-zinc-950 font-black shadow-md'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Gauge className="w-4 h-4" />
-            <span>Metas</span>
-          </button>
+    <div className="space-y-4 pb-28">
+      {/* SEGUNDO CABEÇALHO (SUB-HEADER DA PÁGINA DE CORRIDA - LARGURA TOTAL) */}
+      <header className="sticky top-[57px] z-20 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800/80 px-4 py-0 shadow-md shadow-black/40">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+          {/* Controllers: Tabs Metas | Histórico | Pace (Full Width / Sem Retângulo Arredondado) */}
+          <div className="flex-1 flex items-center gap-1 sm:gap-2 font-bold text-xs">
+            <button
+              onClick={() => setActiveTab('workouts')}
+              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-3 transition-all flex items-center justify-center gap-1.5 border-b-2 font-bold cursor-pointer whitespace-nowrap ${
+                activeTab === 'workouts'
+                  ? 'border-amber-400 text-amber-400 bg-amber-500/10'
+                  : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+              }`}
+            >
+              <Gauge className="w-4 h-4 stroke-[2.5]" />
+              <span>Metas</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'history'
-                ? 'bg-amber-500 text-zinc-950 font-black shadow-md'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Award className="w-4 h-4" />
-            <span>Histórico ({runningHistory.length})</span>
-          </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-3 transition-all flex items-center justify-center gap-1.5 border-b-2 font-bold cursor-pointer whitespace-nowrap ${
+                activeTab === 'history'
+                  ? 'border-amber-400 text-amber-400 bg-amber-500/10'
+                  : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+              }`}
+            >
+              <Award className="w-4 h-4 stroke-[2.5]" />
+              <span>Histórico <span className="text-[10px] opacity-80 font-mono">({runningHistory.length})</span></span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('calculator')}
-            className={`py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              activeTab === 'calculator'
-                ? 'bg-amber-500 text-zinc-950 font-black shadow-md'
-                : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Calculator className="w-4 h-4" />
-            <span>Pace</span>
-          </button>
+            <button
+              onClick={() => setActiveTab('calculator')}
+              className={`flex-1 sm:flex-initial px-3 sm:px-4 py-3 transition-all flex items-center justify-center gap-1.5 border-b-2 font-bold cursor-pointer whitespace-nowrap ${
+                activeTab === 'calculator'
+                  ? 'border-amber-400 text-amber-400 bg-amber-500/10'
+                  : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+              }`}
+            >
+              <Calculator className="w-4 h-4 stroke-[2.5]" />
+              <span>Pace</span>
+            </button>
+          </div>
+
+          {/* Contextual Action Buttons in Sub-Header */}
+          <div className="flex items-center gap-1.5 shrink-0 py-1.5">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="hidden sm:flex px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-amber-500/40 text-amber-400 font-bold text-xs transition-all items-center gap-1.5 cursor-pointer"
+              title="Criar Nova Meta de Corrida"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <span>Nova Meta</span>
+            </button>
+
+            <button
+              onClick={() => setShowLogModal(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-zinc-950 font-black text-xs shadow-lg shadow-amber-500/20 hover:bg-amber-400 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Registrar Resultado de Corrida"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span className="hidden xs:inline">Registrar</span>
+            </button>
+          </div>
         </div>
+      </header>
 
-        <button
-          onClick={() => setShowLogModal(true)}
-          className="p-2.5 sm:px-3.5 sm:py-2.5 rounded-2xl bg-amber-500 text-zinc-950 font-bold text-xs shadow-lg shadow-amber-500/20 hover:bg-amber-400 active:scale-95 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-          title="Registrar Corrida"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span className="hidden sm:inline">Registrar</span>
-        </button>
-      </div>
-
-      {/* TAB 1: TREINOS & METAS */}
-      {activeTab === 'workouts' && (
+      {/* ÁREA DE CONTEÚDO PRINCIPAL (COM MARGEM INTERNA MAX-W-4XL) */}
+      <div className="max-w-4xl mx-auto px-4 space-y-4">
+        {/* TAB 1: TREINOS & METAS */}
+        {activeTab === 'workouts' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
@@ -259,6 +414,9 @@ export const RunningView: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {runningWorkouts.map(w => {
               const paceSecs = w.targetPaceSecPerKm || (w.targetDurationSeconds && w.targetDistanceKm ? Math.round(w.targetDurationSeconds / w.targetDistanceKm) : 0);
+              const wLogs = runningHistory.filter(h => h.workoutId === w.id || h.workoutTitle === w.title);
+              const execCount = wLogs.length;
+              const bestLog = wLogs.length > 0 ? [...wLogs].sort((a, b) => a.durationSeconds - b.durationSeconds)[0] : null;
 
               return (
                 <div
@@ -323,6 +481,16 @@ export const RunningView: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* History / Record Summary for this Meta */}
+                  <div className="flex items-center justify-between text-[11px] bg-zinc-950/60 border border-zinc-800/80 rounded-xl px-2.5 py-1.5 text-zinc-300 font-mono">
+                    <span className="font-bold text-amber-400">🏆 {execCount} {execCount === 1 ? 'registro' : 'registros'}</span>
+                    {bestLog ? (
+                      <span className="text-emerald-400 font-bold">⚡ Recorde: {formatSecondsToMMSS(bestLog.durationSeconds)} ({formatPace(bestLog.paceSecPerKm)})</span>
+                    ) : (
+                      <span className="text-zinc-500 italic font-sans text-[10px]">Sem treinos salvos</span>
+                    )}
+                  </div>
+
                   {w.notes && (
                     <p className="text-xs text-zinc-400 bg-zinc-950/40 p-2 rounded-lg border border-zinc-800/40">
                       ⚡ {w.notes}
@@ -331,11 +499,12 @@ export const RunningView: React.FC = () => {
 
                   <button
                     onClick={() => {
+                      setSelectedWorkoutId(w.id);
                       setLogTitle(w.title);
                       setLogDistanceKm(w.targetDistanceKm ? String(w.targetDistanceKm) : '2.4');
                       if (w.targetDurationSeconds) {
                         setLogMins(String(Math.floor(w.targetDurationSeconds / 60)));
-                        setLogSecs(String(w.targetDurationSeconds % 60));
+                        setLogSecs(String(w.targetDurationSeconds % 60).padStart(2, '0'));
                       }
                       if (w.targetMode === 'interval' && w.lapsCount) {
                         setIncludeLaps(true);
@@ -367,18 +536,32 @@ export const RunningView: React.FC = () => {
       {/* TAB 2: HISTÓRICO DE CORRIDAS */}
       {activeTab === 'history' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
               Histórico de Execuções ({runningHistory.length})
             </h2>
-            {runningHistory.length > 0 && (
-              <button
-                onClick={clearRunningHistory}
-                className="text-xs font-bold text-rose-400 hover:underline"
+
+            <div className="flex items-center gap-2">
+              <select
+                value={historyFilterWorkoutId}
+                onChange={e => setHistoryFilterWorkoutId(e.target.value)}
+                className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
               >
-                Limpar Histórico
-              </button>
-            )}
+                <option value="all">Todas as Metas</option>
+                {runningWorkouts.map(w => (
+                  <option key={w.id} value={w.id}>{w.title}</option>
+                ))}
+              </select>
+
+              {runningHistory.length > 0 && (
+                <button
+                  onClick={clearRunningHistory}
+                  className="text-xs font-bold text-rose-400 hover:underline shrink-0"
+                >
+                  Limpar Histórico
+                </button>
+              )}
+            </div>
           </div>
 
           {runningHistory.length === 0 ? (
@@ -400,25 +583,44 @@ export const RunningView: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-2.5">
-              {runningHistory.map(log => {
-                const isExpanded = expandedLogId === log.id;
-                const hasLaps = log.laps && log.laps.length > 0;
+              {runningHistory
+                .filter(log => historyFilterWorkoutId === 'all' || log.workoutId === historyFilterWorkoutId || (log.workoutTitle && runningWorkouts.find(w => w.id === historyFilterWorkoutId)?.title === log.workoutTitle))
+                .map(log => {
+                  const isExpanded = expandedLogId === log.id;
+                  const hasLaps = log.laps && log.laps.length > 0;
+                  const linkedWorkout = runningWorkouts.find(w => w.id === log.workoutId || w.title === log.workoutTitle);
+                  const targetDur = linkedWorkout?.targetDurationSeconds;
+                  const diffSecs = targetDur ? log.durationSeconds - targetDur : null;
 
-                return (
-                  <div
-                    key={log.id}
-                    className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 space-y-2 hover:border-zinc-700 transition-all"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="space-y-1 overflow-hidden">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-white font-['Outfit'] truncate">
-                            {log.workoutTitle}
-                          </span>
-                          <span className="text-[10px] text-zinc-500 font-mono">
-                            {formatDate(log.date)}
-                          </span>
-                        </div>
+                  return (
+                    <div
+                      key={log.id}
+                      className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 space-y-2 hover:border-zinc-700 transition-all"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1 overflow-hidden">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-bold text-white font-['Outfit'] truncate">
+                              {log.workoutTitle}
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              {formatDate(log.date)}
+                            </span>
+                            {linkedWorkout && (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold">
+                                Meta: {linkedWorkout.title}
+                              </span>
+                            )}
+                            {diffSecs !== null && (
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ${
+                                diffSecs <= 0
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                  : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                              }`}>
+                                {diffSecs <= 0 ? `🟢 Meta Batida! (${Math.abs(diffSecs)}s abaixo)` : `🟡 +${diffSecs}s acima da meta`}
+                              </span>
+                            )}
+                          </div>
 
                         <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
                           <span className="text-amber-400 font-bold">
@@ -500,36 +702,61 @@ export const RunningView: React.FC = () => {
               <Calculator className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Calculadora Interativa de Pace</h2>
-              <p className="text-xs text-zinc-400">Insira a distância e o tempo estimado para calcular o ritmo exato por km</p>
+              <h2 className="text-base font-bold text-white">Calculadora Interativa de Pace, Distância e Tempo</h2>
+              <p className="text-xs text-zinc-400">Preencha quaisquer 2 campos e o 3º será calculado automaticamente.</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Input Pace */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-amber-400">⚡ Ritmo / Pace (min/km)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  value={calcPaceMins}
+                  onChange={e => handleCalcPaceChange(e.target.value, calcPaceSecsInput)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 font-mono text-sm font-bold focus:border-amber-400 focus:outline-none"
+                  placeholder="Min"
+                />
+                <span className="text-zinc-500 font-bold">:</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={calcPaceSecsInput}
+                  onChange={e => handleCalcPaceChange(calcPaceMins, e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 font-mono text-sm font-bold focus:border-amber-400 focus:outline-none"
+                  placeholder="Seg"
+                />
+              </div>
+            </div>
+
             {/* Input Distância */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Distância Percorrida (km)</label>
+              <label className="text-xs font-bold text-white">📍 Distância (km)</label>
               <input
                 type="number"
-                step="0.1"
-                min="0.1"
+                step="0.01"
+                min="0.01"
                 value={calcDistKm}
-                onChange={e => setCalcDistKm(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white font-mono text-sm focus:border-amber-400 focus:outline-none"
+                onChange={e => handleCalcDistChange(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white font-mono text-sm font-bold focus:border-amber-400 focus:outline-none"
                 placeholder="ex: 2.4"
               />
             </div>
 
             {/* Input Tempo (Minutos e Segundos) */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Tempo Gasto (Minutos : Segundos)</label>
+              <label className="text-xs font-bold text-cyan-400">⌛ Tempo Gasto (Min : Seg)</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   min="0"
                   value={calcMins}
-                  onChange={e => setCalcMins(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white font-mono text-sm focus:border-amber-400 focus:outline-none"
+                  onChange={e => handleCalcTimeChange(e.target.value, calcSecs)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-cyan-400 font-mono text-sm font-bold focus:border-cyan-400 focus:outline-none"
                   placeholder="Min"
                 />
                 <span className="text-zinc-500 font-bold">:</span>
@@ -538,8 +765,8 @@ export const RunningView: React.FC = () => {
                   min="0"
                   max="59"
                   value={calcSecs}
-                  onChange={e => setCalcSecs(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-white font-mono text-sm focus:border-amber-400 focus:outline-none"
+                  onChange={e => handleCalcTimeChange(calcMins, e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-cyan-400 font-mono text-sm font-bold focus:border-cyan-400 focus:outline-none"
                   placeholder="Seg"
                 />
               </div>
@@ -547,23 +774,31 @@ export const RunningView: React.FC = () => {
           </div>
 
           {/* Result Highlight Box */}
-          <div className="grid grid-cols-2 gap-3 bg-gradient-to-br from-amber-500/10 via-zinc-950 to-cyan-500/10 border border-amber-500/30 rounded-2xl p-4 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-gradient-to-br from-amber-500/10 via-zinc-950 to-cyan-500/10 border border-amber-500/30 rounded-2xl p-4 text-center">
             <div className="space-y-1">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">Ritmo (Pace Médio)</span>
-              <span className="text-3xl font-black text-amber-400 font-mono tracking-tight">
+              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Ritmo (Pace Médio)</span>
+              <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono tracking-tight">
                 {formatPace(calcPaceSecs)}
               </span>
             </div>
 
             <div className="space-y-1 border-l border-zinc-800 pl-3">
-              <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">Velocidade Média</span>
-              <span className="text-3xl font-black text-cyan-400 font-mono tracking-tight">
-                {calcSpeed} <span className="text-sm font-normal text-zinc-400">km/h</span>
+              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Tempo Total</span>
+              <span className="text-2xl sm:text-3xl font-black text-cyan-400 font-mono tracking-tight">
+                {formatSecondsToMMSS(calcTotalSecs)}
+              </span>
+            </div>
+
+            <div className="space-y-1 border-l border-zinc-800 pl-3 col-span-2 sm:col-span-1">
+              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">Velocidade Média</span>
+              <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">
+                {calcSpeed} <span className="text-xs font-normal text-zinc-400">km/h</span>
               </span>
             </div>
           </div>
         </div>
       )}
+    </div>
 
       {/* MODAL: CRIAR NOVA META DE CORRIDA */}
       {showCreateModal && (
@@ -626,17 +861,14 @@ export const RunningView: React.FC = () => {
 
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold text-zinc-400">Metros por Volta</label>
-                    <select
+                    <input
+                      type="number"
+                      min="1"
                       value={lapDistMetersInput}
                       onChange={e => setLapDistMetersInput(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-xs font-mono font-bold"
-                    >
-                      <option value="100">100m</option>
-                      <option value="200">200m</option>
-                      <option value="400">400m</option>
-                      <option value="800">800m</option>
-                      <option value="1000">1.000m</option>
-                    </select>
+                      placeholder="400"
+                    />
                   </div>
                 </div>
 
@@ -675,37 +907,71 @@ export const RunningView: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-zinc-400">Distância (km)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={targetDistanceKm}
-                    onChange={e => setTargetDistanceKm(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs font-mono font-bold"
-                    placeholder="2.4"
-                  />
-                </div>
+              <div className="space-y-3 bg-zinc-950/80 p-3 rounded-2xl border border-zinc-800">
+                <p className="text-[11px] text-zinc-400 font-medium">Preencha 2 campos para calcular o 3º automaticamente:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Pace Alvo */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-amber-400">⚡ Pace (min/km)</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        value={targetPaceMins}
+                        onChange={e => handleModalPaceChange(e.target.value, targetPaceSecs)}
+                        className="w-full px-2 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-mono font-bold"
+                        placeholder="5"
+                      />
+                      <span className="text-zinc-500 font-bold">:</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="59"
+                        value={targetPaceSecs}
+                        onChange={e => handleModalPaceChange(targetPaceMins, e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 text-xs font-mono font-bold"
+                        placeholder="00"
+                      />
+                    </div>
+                  </div>
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-zinc-400">Tempo Alvo (Min : Seg)</label>
-                  <div className="flex items-center gap-1">
+                  {/* Distância */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-white">📍 Distância (km)</label>
                     <input
                       type="number"
-                      value={targetMins}
-                      onChange={e => setTargetMins(e.target.value)}
-                      className="w-full px-2 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs font-mono font-bold"
-                      placeholder="12"
+                      step="0.01"
+                      min="0.01"
+                      value={targetDistanceKm}
+                      onChange={e => handleModalDistChange(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-xs font-mono font-bold"
+                      placeholder="2.4"
                     />
-                    <span className="text-zinc-500 font-bold">:</span>
-                    <input
-                      type="number"
-                      value={targetSecs}
-                      onChange={e => setTargetSecs(e.target.value)}
-                      className="w-full px-2 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-white text-xs font-mono font-bold"
-                      placeholder="00"
-                    />
+                  </div>
+
+                  {/* Tempo Alvo */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-cyan-400">⌛ Tempo (Min : Seg)</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        value={targetMins}
+                        onChange={e => handleModalTimeChange(e.target.value, targetSecs)}
+                        className="w-full px-2 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-cyan-400 text-xs font-mono font-bold"
+                        placeholder="12"
+                      />
+                      <span className="text-zinc-500 font-bold">:</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="59"
+                        value={targetSecs}
+                        onChange={e => handleModalTimeChange(targetMins, e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-cyan-400 text-xs font-mono font-bold"
+                        placeholder="00"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -759,8 +1025,49 @@ export const RunningView: React.FC = () => {
               </button>
             </div>
 
+            {/* Seleção de Meta / Treino Atrelado */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-zinc-300">Nome do Treino</label>
+              <label className="text-xs font-bold text-amber-400">Meta / Treino de Corrida Atrelado</label>
+              <select
+                value={selectedWorkoutId}
+                onChange={e => {
+                  const wId = e.target.value;
+                  setSelectedWorkoutId(wId);
+                  const found = runningWorkouts.find(w => w.id === wId);
+                  if (found) {
+                    setLogTitle(found.title);
+                    if (found.targetDistanceKm) setLogDistanceKm(String(found.targetDistanceKm));
+                    if (found.targetDurationSeconds) {
+                      setLogMins(String(Math.floor(found.targetDurationSeconds / 60)));
+                      setLogSecs(String(found.targetDurationSeconds % 60).padStart(2, '0'));
+                    }
+                    if (found.targetMode === 'interval' && found.lapsCount) {
+                      setIncludeLaps(true);
+                      const lapM = String(found.lapDistanceMeters || 400);
+                      const targetSecsVal = found.lapTargetSeconds || 120;
+                      const minsStr = String(Math.floor(targetSecsVal / 60));
+                      const secsStr = String(targetSecsVal % 60).padStart(2, '0');
+                      const initialLaps: ManualLapItem[] = [];
+                      for (let i = 0; i < found.lapsCount; i++) {
+                        initialLaps.push({ mins: minsStr, secs: secsStr, meters: lapM });
+                      }
+                      setManualLaps(initialLaps);
+                    }
+                  }
+                }}
+                className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:border-amber-400 focus:outline-none"
+              >
+                <option value="">-- Treino Livre / Sem Meta --</option>
+                {runningWorkouts.map(w => (
+                  <option key={w.id} value={w.id}>
+                    🎯 {w.title} ({w.targetDistanceKm ? `${w.targetDistanceKm}km` : 'Intervalado'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-300">Nome do Registro / Treino</label>
               <input
                 type="text"
                 required
