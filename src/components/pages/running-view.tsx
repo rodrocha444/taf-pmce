@@ -481,7 +481,15 @@ export const RunningView: React.FC = () => {
                       <div>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold uppercase">
-                            {w.targetMode === 'interval' ? 'Intervalado / Voltas' : w.targetMode === 'time' ? 'Por Tempo Apenas' : w.targetMode === 'distance' ? 'Por Distância' : 'Por Pace'}
+                            {w.targetMode === 'interval'
+                              ? 'Intervalado / Voltas'
+                              : w.targetMode === 'time'
+                              ? 'Por Tempo Apenas'
+                              : w.targetMode === 'time_full'
+                              ? 'Por Tempo (Distância & Pace)'
+                              : w.targetMode === 'distance'
+                              ? 'Por Distância'
+                              : 'Por Pace'}
                           </span>
                           {w.isDefault && (
                             <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
@@ -675,7 +683,7 @@ export const RunningView: React.FC = () => {
                                 </span>
                               )}
                               {diffSecs !== null && (
-                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ${linkedWorkout?.targetMode === 'time'
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono border ${(linkedWorkout?.targetMode === 'time' || linkedWorkout?.targetMode === 'time_full')
                                   ? (log.durationSeconds >= (targetDur || 0)
                                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                     : 'bg-amber-500/10 text-amber-400 border-amber-500/20')
@@ -683,7 +691,7 @@ export const RunningView: React.FC = () => {
                                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                     : 'bg-rose-500/10 text-rose-400 border-rose-500/20')
                                   }`}>
-                                  {linkedWorkout?.targetMode === 'time'
+                                  {(linkedWorkout?.targetMode === 'time' || linkedWorkout?.targetMode === 'time_full')
                                     ? (log.durationSeconds >= (targetDur || 0)
                                       ? `🟢 Tempo Cumprido! (${formatSecondsToMMSS(log.durationSeconds)})`
                                       : `🟡 ${Math.round((targetDur || 0) - log.durationSeconds)}s restantes`)
@@ -914,10 +922,11 @@ export const RunningView: React.FC = () => {
                 onChange={e => setTargetMode(e.target.value as RunningTargetMode)}
                 className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-400 text-xs font-bold focus:outline-none"
               >
-                <option value="time">⌛ Por Tempo Apenas (ex: Correr 30 min)</option>
+                <option value="time">⌛ Por Tempo Apenas (Distância e Pace livres)</option>
+                <option value="time_full">⏱️ Por Tempo (com Distância e Pace)</option>
                 <option value="distance">📍 Por Distância Alvo (km)</option>
-                <option value="interval">⏱️ Por Intervalos / Voltas (Tiros de Pista)</option>
                 <option value="pace">⚡ Por Pace Alvo (min/km)</option>
+                <option value="interval">🔁 Por Intervalos / Voltas (Tiros de Pista)</option>
               </select>
             </div>
 

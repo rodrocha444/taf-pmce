@@ -89,12 +89,12 @@ export interface ActiveSession {
   exerciseStatuses: Record<number, 'completed' | 'skipped'>;
 }
 
-export type RunningTargetMode = 'distance' | 'time' | 'pace' | 'interval';
+export type RunningTargetMode = 'distance' | 'time' | 'time_full' | 'pace' | 'interval';
 
 export interface RunningWorkout {
   id: string;
   title: string;
-  targetMode: RunningTargetMode; // 'distance', 'time', 'pace', 'interval'
+  targetMode: RunningTargetMode; // 'distance', 'time', 'time_full', 'pace', 'interval'
   targetDistanceKm?: number;      // e.g. 2.4 (2.4 km)
   targetDurationSeconds?: number; // e.g. 720 (12 mins)
   targetPaceSecPerKm?: number;    // e.g. 300 (5:00 min/km)
