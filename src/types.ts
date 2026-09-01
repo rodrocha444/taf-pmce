@@ -21,6 +21,9 @@ export interface Exercise {
   restDurationSeconds: number; // default 60 (1 min rest)
   durationSeconds: number;     // total = work + rest (120s / 2 mins)
   catalogId?: string;          // referência ao exercício da biblioteca
+  setNumber?: number;          // número da série (ex: 1, 2, 3...)
+  totalSets?: number;          // total de séries do exercício (ex: 3)
+  setId?: string;              // identificador do grupo de séries
 }
 
 export interface Workout {
@@ -45,6 +48,8 @@ export interface ExerciseEvolutionLog {
   realWorkSeconds?: number;     // Tempo real de execução gasto
   status: 'completed' | 'skipped';
   timestamp: string;
+  setNumber?: number;
+  totalSets?: number;
 }
 
 export interface WorkoutSessionLog {

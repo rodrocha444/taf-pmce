@@ -1,258 +1,111 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import confetti from 'canvas-confetti';
-import type { Workout, ActiveSession, WorkoutSessionLog, UserSettings, Exercise, ExerciseExecutionType, RunningWorkout, RunningLog, ExerciseEvolutionLog, ExerciseCatalogItem } from '../types';
-import { DEFAULT_TAF_WORKOUT } from '../data/default-workout';
-import { DEFAULT_EXERCISE_CATALOG } from '../data/default-catalog';
+import type {
+  Workout,
+  ActiveSession,
+  WorkoutSessionLog,
+  UserSettings,
+  Exercise,
+  ExerciseExecutionType,
+  ExerciseEvolutionLog,
+} from '../types';
 import { audioEngine } from '../utils/audio';
 import { speechEngine } from '../utils/speech';
 import { wakeLockManager } from '../utils/wake-lock';
-import { calculatePaceSecPerKm, calculateSpeedKmH } from '../utils/formatters';
-import { indexedDBStorage } from '../services/db-storage';
-import { db } from '../services/db';
 
-export const DEFAULT_RUNNING_WORKOUTS: RunningWorkout[] = [
-  {
-    id: 'run-taf-pmce',
-    title: 'Corrida TAF PMCE (2.400m)',
-    targetMode: 'distance',
-    targetDistanceKm: 2.4,
-    targetDurationSeconds: 720,
-    targetPaceSecPerKm: 300,
-    notes: 'Meta Oficial TAF PMCE: 2.400 metros em 12 minutos (Pace 5:00 min/km)',
-    isDefault: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'run-interval-6x400',
-    title: 'Treino Intervalado por Voltas (6x 400m)',
-    targetMode: 'interval',
-    targetDistanceKm: 2.4,
-    targetDurationSeconds: 720,
-    targetPaceSecPerKm: 300,
-    lapsCount: 6,
-    lapDistanceMeters: 400,
-    lapTargetSeconds: 120,
-    restBetweenLapsSeconds: 60,
-    notes: '6 tiros de 400m em pista com 1 minuto de trote/descanso entre tiros',
-    isDefault: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'run-5k',
-    title: 'Rodagem 5km',
-    targetMode: 'distance',
-    targetDistanceKm: 5.0,
-    targetDurationSeconds: 1650,
-    targetPaceSecPerKm: 330,
-    notes: 'Treino de resistência aeróbica contínua',
-    isDefault: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'run-30min-time',
-    title: 'Corrida Livre (30 Minutos)',
-    targetMode: 'time',
-    targetDurationSeconds: 1800,
-    notes: 'Treino contínuo por tempo. A distância e o ritmo são livres.',
-    isDefault: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'run-sprint-400m',
-    title: 'Tiro de Velocidade (400m)',
-    targetMode: 'distance',
-    targetDistanceKm: 0.4,
-    targetDurationSeconds: 90,
-    targetPaceSecPerKm: 225,
-    notes: 'Treino de velocidade anaeróbica',
-    isDefault: true,
-    createdAt: new Date().toISOString()
-  }
-];
+export { DEFAULT_RUNNING_WORKOUTS } from './running-defaults';
+
+export const formatExerciseVoiceLabel = (ex?: Exercise): { label: string; repsInfo: string } => {
+  if (!ex) return { label: '', repsInfo: '' };
+  const setInfo = ex.setNumber && ex.totalSets ? `, Série ${ex.setNumber} de ${ex.totalSets}` : '';
+  const isReps = ex.executionType === 'reps' || (ex.targetReps !== undefined && ex.targetReps > 0);
+  const repsInfo = isReps && ex.targetReps ? `. Meta: ${ex.targetReps} repetições` : '';
+  return {
+    label: `${ex.name}${setInfo}`,
+    repsInfo
+  };
+};
+
+// ─── Store Interface ──────────────────────────────────────────────────────────
 
 interface WorkoutStore {
-  workouts: Workout[];
+  // Ephemeral session state
   activeWorkoutId: string;
   activeSession: ActiveSession | null;
-  history: WorkoutSessionLog[];
+
+  // Persisted settings (localStorage)
   settings: UserSettings;
-  runningWorkouts: RunningWorkout[];
-  runningHistory: RunningLog[];
-  exerciseCatalog: ExerciseCatalogItem[];
 
-  // Catalog actions
-  addCatalogExercise: (item: Omit<ExerciseCatalogItem, 'id'>) => ExerciseCatalogItem;
-  deleteCatalogExercise: (id: string) => void;
-  addExerciseFromCatalogToWorkout: (workoutId: string, catalogId: string, overrides?: Partial<Omit<Exercise, 'id' | 'durationSeconds'>>) => void;
-
-  // Actions
-  getActiveWorkout: () => Workout;
-  setActiveWorkoutId: (id: string) => void;
-  createWorkout: (title: string, description?: string) => Workout;
-  updateWorkoutDetails: (id: string, title: string, description: string) => void;
-  startWorkout: (workoutId?: string) => void;
-  pauseWorkout: () => void;
-  resumeWorkout: () => void;
-  tickSession: () => void;
-  completeExercise: () => void;
-  skipExercise: () => void;
-  nextExercise: () => void;
-  prevExercise: () => void;
-  finishWorkout: (status?: 'completed' | 'cancelled') => void;
-  deleteHistoryLog: (id: string) => void;
-  clearHistory: () => void;
-  addManualHistoryLog: (log: Omit<WorkoutSessionLog, 'id'>) => void;
-  saveWorkout: (workout: Workout) => void;
-  deleteWorkout: (id: string) => void;
-  resetAllDataToDefaults: () => void;
-  updateSettings: (settings: Partial<UserSettings>) => void;
-  addExerciseToWorkout: (workoutId: string, exercise: Omit<Exercise, 'id' | 'durationSeconds'>) => void;
-  updateExerciseInWorkout: (workoutId: string, exercise: Exercise) => void;
-  updateActiveExercise: (exerciseId: string, updates: { executionType?: ExerciseExecutionType; targetReps?: number; workDurationSeconds?: number; restDurationSeconds?: number }) => void;
-  deleteExerciseFromWorkout: (workoutId: string, exerciseId: string) => void;
-  reorderExercisesInWorkout: (workoutId: string, startIndex: number, endIndex: number) => void;
-
-  // Running actions
-  addRunningWorkout: (workout: Omit<RunningWorkout, 'id' | 'createdAt'>) => RunningWorkout;
-  updateRunningWorkout: (id: string, workout: Partial<Omit<RunningWorkout, 'id' | 'createdAt'>>) => void;
-  deleteRunningWorkout: (id: string) => void;
-  addRunningLog: (log: Omit<RunningLog, 'id' | 'paceSecPerKm' | 'speedKmH'>) => void;
-  deleteRunningLog: (id: string) => void;
-  clearRunningHistory: () => void;
+  // UI flags
   showCreateWorkoutModal: boolean;
   setShowCreateWorkoutModal: (open: boolean) => void;
   showCreateExerciseModal: boolean;
   setShowCreateExerciseModal: (open: boolean) => void;
   showManualHistoryModal: boolean;
   setShowManualHistoryModal: (open: boolean) => void;
+
+  // Workout actions (mutate via TanStack Query hooks, not here)
+  setActiveWorkoutId: (id: string) => void;
+
+  // Session actions
+  startWorkout: (workout: Workout) => void;
+  pauseWorkout: () => void;
+  resumeWorkout: () => void;
+  tickSession: (workout: Workout) => void;
+  completeExercise: (workout: Workout) => void;
+  skipExercise: (workout: Workout) => void;
+  nextExercise: (workout: Workout) => void;
+  prevExercise: (workout: Workout) => void;
+
+  /**
+   * finishWorkout: encerra a sessão e retorna o log para persistência externa.
+   * O chamador é responsável por salvar via useAddHistoryLog().
+   */
+  finishWorkout: (workout: Workout, status?: 'completed' | 'cancelled') => WorkoutSessionLog | null;
+
+  /**
+   * pendingLog: log gerado quando treino termina automaticamente via timer.
+   * O PlayerView observa isso e persiste via useAddHistoryLog, depois limpa com clearPendingLog().
+   */
+  pendingLog: WorkoutSessionLog | null;
+  clearPendingLog: () => void;
+
+  updateActiveExercise: (exerciseId: string, updates: { executionType?: ExerciseExecutionType; targetReps?: number; workDurationSeconds?: number; restDurationSeconds?: number }, workout: Workout) => void;
+
+  // Settings
+  updateSettings: (settings: Partial<UserSettings>) => void;
 }
+
+// ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useWorkoutStore = create<WorkoutStore>()(
   persist(
     (set, get) => ({
-      workouts: [],
       activeWorkoutId: '',
       activeSession: null,
-      history: [],
+      pendingLog: null,
       settings: {
         soundBeepEnabled: true,
         ttsVoiceEnabled: true,
         prepCountdownSeconds: 5,
         keepScreenOn: true,
         autoAdvanceBlocks: true,
-        autoCloudSyncEnabled: true,
+        autoCloudSyncEnabled: false,
         volume: 1
       },
-      runningWorkouts: [],
-      runningHistory: [],
-      exerciseCatalog: [],
       showCreateWorkoutModal: false,
       setShowCreateWorkoutModal: (open) => set({ showCreateWorkoutModal: open }),
-
       showCreateExerciseModal: false,
       setShowCreateExerciseModal: (open) => set({ showCreateExerciseModal: open }),
-
       showManualHistoryModal: false,
       setShowManualHistoryModal: (open) => set({ showManualHistoryModal: open }),
 
-      addCatalogExercise: (itemData) => {
-        const newItem: ExerciseCatalogItem = {
-          ...itemData,
-          id: `cat-${Date.now()}`
-        };
-        set(state => ({
-          exerciseCatalog: [...(state.exerciseCatalog || DEFAULT_EXERCISE_CATALOG), newItem]
-        }));
-        try {
-          db.exerciseCatalog.put(newItem).catch(err => console.warn('Dexie error:', err));
-        } catch (e) {
-          console.warn('db error:', e);
-        }
-        return newItem;
-      },
+      setActiveWorkoutId: (id: string) => set({ activeWorkoutId: id }),
 
-      deleteCatalogExercise: (id) => {
-        set(state => ({
-          exerciseCatalog: (state.exerciseCatalog || []).filter(c => c.id !== id)
-        }));
-        try {
-          db.exerciseCatalog.delete(id).catch(err => console.warn('Dexie error:', err));
-        } catch (e) {
-          console.warn('db error:', e);
-        }
-      },
+      // ─── Session ────────────────────────────────────────────────────────
 
-      addExerciseFromCatalogToWorkout: (workoutId, catalogId, overrides) => {
-        const catalogItem = (get().exerciseCatalog || DEFAULT_EXERCISE_CATALOG).find(c => c.id === catalogId);
-        if (!catalogItem) return;
-
-        const workSecs = overrides?.workDurationSeconds ?? catalogItem.defaultWorkDurationSeconds;
-        const restSecs = overrides?.restDurationSeconds ?? catalogItem.defaultRestDurationSeconds;
-
-        const newEx: Exercise = {
-          id: `ex-${Date.now()}`,
-          catalogId: catalogItem.id,
-          name: catalogItem.name,
-          executionType: catalogItem.executionType,
-          targetReps: overrides?.targetReps ?? catalogItem.defaultTargetReps,
-          focusNotes: overrides?.focusNotes ?? catalogItem.focusNotes,
-          workDurationSeconds: workSecs,
-          restDurationSeconds: restSecs,
-          durationSeconds: workSecs + restSecs
-        };
-
-        get().addExerciseToWorkout(workoutId, newEx);
-      },
-
-      getActiveWorkout: () => {
-        const { workouts, activeWorkoutId } = get();
-        return workouts.find(w => w.id === activeWorkoutId) || workouts[0] || DEFAULT_TAF_WORKOUT;
-      },
-
-      setActiveWorkoutId: (id: string) => {
-        const exists = get().workouts.some(w => w.id === id);
-        if (exists) {
-          set({ activeWorkoutId: id });
-        }
-      },
-
-      createWorkout: (title: string, description = '') => {
-        const newWorkout: Workout = {
-          id: `workout-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-          title: title.trim() || 'Novo Treino',
-          description: description.trim(),
-          exercises: [],
-          isDefault: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        set(state => ({
-          workouts: [...state.workouts, newWorkout],
-          activeWorkoutId: newWorkout.id
-        }));
-        return newWorkout;
-      },
-
-      updateWorkoutDetails: (id: string, title: string, description: string) => {
-        set(state => ({
-          workouts: state.workouts.map(w => {
-            if (w.id === id) {
-              return {
-                ...w,
-                title: title.trim() || w.title,
-                description: description.trim(),
-                updatedAt: new Date().toISOString()
-              };
-            }
-            return w;
-          })
-        }));
-      },
-
-      startWorkout: (workoutId) => {
-        const targetId = workoutId || get().activeWorkoutId;
-        const workout = get().workouts.find(w => w.id === targetId) || get().getActiveWorkout();
+      startWorkout: (workout: Workout) => {
         if (!workout.exercises.length) return;
 
         const settings = get().settings;
@@ -284,16 +137,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
         if (isPreparing) {
           if (settings.ttsVoiceEnabled) {
-            const isReps = firstExercise.executionType === 'reps' || (firstExercise.targetReps !== undefined && firstExercise.targetReps > 0);
-            const repsInfo = isReps && firstExercise.targetReps ? `. Meta: ${firstExercise.targetReps} repetições` : '';
-            speechEngine.speak(`Treino iniciando em ${settings.prepCountdownSeconds} segundos. Prepare-se para ${firstExercise.name}${repsInfo}`, true, settings.volume);
+            const { label, repsInfo } = formatExerciseVoiceLabel(firstExercise);
+            speechEngine.speak(`Treino iniciando em ${settings.prepCountdownSeconds} segundos. Prepare-se para ${label}${repsInfo}`, true, settings.volume);
           }
         } else {
           if (settings.soundBeepEnabled) audioEngine.playGoBeep();
           if (settings.ttsVoiceEnabled) {
-            const isReps = firstExercise.executionType === 'reps' || (firstExercise.targetReps !== undefined && firstExercise.targetReps > 0);
-            const repsInfo = isReps && firstExercise.targetReps ? `. Meta: ${firstExercise.targetReps} repetições` : '';
-            speechEngine.speak(`Valendo! Execução: ${firstExercise.name}${repsInfo}`, true, settings.volume);
+            const { label, repsInfo } = formatExerciseVoiceLabel(firstExercise);
+            speechEngine.speak(`Valendo! Execução: ${label}${repsInfo}`, true, settings.volume);
           }
         }
       },
@@ -320,14 +171,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
         speechEngine.speak('Treino retomado', settings.ttsVoiceEnabled, settings.volume);
       },
 
-      tickSession: () => {
+      tickSession: (workout: Workout) => {
         const session = get().activeSession;
         if (!session || session.isPaused) return;
 
-        const { settings, workouts } = get();
-        const workout = workouts.find(w => w.id === session.workoutId) || DEFAULT_TAF_WORKOUT;
+        const { settings } = get();
 
-        // Preparation phase countdown (happens before EVERY exercise execution)
+        // Preparation phase countdown
         if (session.isPreparing) {
           const nextPrepRemaining = session.prepTimeRemaining - 1;
 
@@ -345,9 +195,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
           } else {
             const currentEx = workout.exercises[session.currentExerciseIndex] || workout.exercises[0];
             if (settings.soundBeepEnabled) audioEngine.playGoBeep();
-            const isReps = currentEx.executionType === 'reps' || (currentEx.targetReps !== undefined && currentEx.targetReps > 0);
-            const repsInfo = isReps && currentEx.targetReps ? `. Meta: ${currentEx.targetReps} repetições` : '';
-            speechEngine.speak(`Valendo! Execução: ${currentEx.name}${repsInfo}`, settings.ttsVoiceEnabled, settings.volume);
+            const { label, repsInfo } = formatExerciseVoiceLabel(currentEx);
+            speechEngine.speak(`Valendo! Execução: ${label}${repsInfo}`, settings.ttsVoiceEnabled, settings.volume);
 
             set({
               activeSession: {
@@ -366,14 +215,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
         const currentExercise = workout.exercises[session.currentExerciseIndex];
         if (!currentExercise) {
-          get().finishWorkout('completed');
+          get().finishWorkout(workout, 'completed');
           return;
         }
 
         const isRepsExercise = currentExercise.executionType === 'reps' || (currentExercise.targetReps !== undefined && currentExercise.targetReps > 0);
 
-        // Repetition-based exercises do NOT have an execution countdown timer!
-        // The athlete completes reps at their own pace and taps "Concluir" or "Pular".
+        // Reps exercises do NOT have an execution countdown timer
         if (session.currentPhase === 'work' && isRepsExercise) {
           set({
             activeSession: {
@@ -389,19 +237,16 @@ export const useWorkoutStore = create<WorkoutStore>()(
         const nextExerciseTime = session.exerciseTimeRemaining - 1;
         const nextTotalElapsed = session.totalTimeElapsed + 1;
 
-        // Audio tick countdown at final 3 seconds of phase
         if (settings.soundBeepEnabled && nextPhaseTime <= 3 && nextPhaseTime > 0) {
           audioEngine.playCountdownTick();
         }
 
-        // Voice alert 10 seconds before rest ends
         if (session.currentPhase === 'rest' && settings.ttsVoiceEnabled && nextPhaseTime === 10) {
           const nextExIndex = session.currentExerciseIndex + 1;
           if (nextExIndex < workout.exercises.length) {
             const nextEx = workout.exercises[nextExIndex];
-            const isReps = nextEx.executionType === 'reps' || (nextEx.targetReps !== undefined && nextEx.targetReps > 0);
-            const repsInfo = isReps && nextEx.targetReps ? ` (${nextEx.targetReps} repetições)` : '';
-            speechEngine.speak(`Em dez segundos, próxima execução: ${nextEx.name}${repsInfo}`, settings.ttsVoiceEnabled, settings.volume);
+            const { label, repsInfo } = formatExerciseVoiceLabel(nextEx);
+            speechEngine.speak(`Em dez segundos, próxima execução: ${label}${repsInfo}`, settings.ttsVoiceEnabled, settings.volume);
           }
         }
 
@@ -416,9 +261,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
             }
           });
         } else {
-          // Phase finished naturally!
           if (session.currentPhase === 'work') {
-            // Execution finished naturally -> mark completed!
             const newStatuses = {
               ...session.exerciseStatuses,
               [session.currentExerciseIndex]: session.exerciseStatuses[session.currentExerciseIndex] || ('completed' as const)
@@ -430,7 +273,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
             if (settings.ttsVoiceEnabled) {
               if (nextExItem) {
-                speechEngine.speak(`Execução concluída! Respire. Próximo exercício: ${nextExItem.name}`, true, settings.volume);
+                const { label: nextLabel } = formatExerciseVoiceLabel(nextExItem);
+                speechEngine.speak(`Execução concluída! Respire. Próximo exercício: ${nextLabel}`, true, settings.volume);
               } else {
                 speechEngine.speak(`Descanso final! Treino quase concluído!`, true, settings.volume);
               }
@@ -448,7 +292,6 @@ export const useWorkoutStore = create<WorkoutStore>()(
               }
             });
           } else {
-            // Rest finished naturally -> Enter Preparation (5s) before next exercise execution!
             const nextIndex = session.currentExerciseIndex + 1;
 
             if (nextIndex < workout.exercises.length) {
@@ -460,13 +303,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
               if (shouldPause) {
                 if (settings.ttsVoiceEnabled) {
-                  speechEngine.speak(`Bloco concluído! Pausado. Toque em Continuar quando estiver pronto para: ${nextEx.name}`, true, settings.volume);
+                  const { label: nextLabel } = formatExerciseVoiceLabel(nextEx);
+                  speechEngine.speak(`Bloco concluído! Pausado. Toque em Continuar quando estiver pronto para: ${nextLabel}`, true, settings.volume);
                 }
               } else {
                 if (settings.ttsVoiceEnabled) {
-                  const isReps = nextEx.executionType === 'reps' || (nextEx.targetReps !== undefined && nextEx.targetReps > 0);
-                  const repsInfo = isReps && nextEx.targetReps ? `. Meta: ${nextEx.targetReps} repetições` : '';
-                  speechEngine.speak(`Prepare-se para: ${nextEx.name}${repsInfo}`, true, settings.volume);
+                  const { label: nextLabel, repsInfo } = formatExerciseVoiceLabel(nextEx);
+                  speechEngine.speak(`Prepare-se para: ${nextLabel}${repsInfo}`, true, settings.volume);
                 }
               }
 
@@ -485,18 +328,15 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 }
               });
             } else {
-              // Entire workout finished!
-              get().finishWorkout('completed');
+              get().finishWorkout(workout, 'completed');
             }
           }
         }
       },
 
-      // CONCLUIR: Explicitly marks exercise as completed
-      completeExercise: () => {
+      completeExercise: (workout: Workout) => {
         const session = get().activeSession;
         if (!session) return;
-        const workout = get().getActiveWorkout();
         const settings = get().settings;
         const shouldPause = !settings.autoAdvanceBlocks;
 
@@ -521,15 +361,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
             }
           });
         } else {
-          // If in rest phase, skipping rest enters preparation (5s) for next exercise
           const nextIndex = currentExIndex + 1;
           if (nextIndex < workout.exercises.length) {
             const nextEx = workout.exercises[nextIndex];
             const prepSeconds = settings.prepCountdownSeconds || 5;
             if (settings.ttsVoiceEnabled) {
-              const isReps = nextEx.executionType === 'reps' || (nextEx.targetReps !== undefined && nextEx.targetReps > 0);
-              const repsInfo = isReps && nextEx.targetReps ? `. Meta: ${nextEx.targetReps} repetições` : '';
-              speechEngine.speak(`Descanso encerrado. Prepare-se para: ${nextEx.name}${repsInfo}`, true, settings.volume);
+              const { label: nextLabel, repsInfo } = formatExerciseVoiceLabel(nextEx);
+              speechEngine.speak(`Descanso encerrado. Prepare-se para: ${nextLabel}${repsInfo}`, true, settings.volume);
             }
 
             set({
@@ -547,25 +385,20 @@ export const useWorkoutStore = create<WorkoutStore>()(
             });
           } else {
             set({ activeSession: { ...session, exerciseStatuses: newStatuses } });
-            get().finishWorkout('completed');
+            get().finishWorkout(workout, 'completed');
           }
         }
       },
 
-      // PULAR:
-      // If during WORK phase: marks exercise as SKIPPED and enters rest phase.
-      // If during REST phase: ONLY skips the rest phase and enters preparation (5s) for next exercise!
-      skipExercise: () => {
+      skipExercise: (workout: Workout) => {
         const session = get().activeSession;
         if (!session) return;
-        const workout = get().getActiveWorkout();
         const settings = get().settings;
         const shouldPause = !settings.autoAdvanceBlocks;
 
         const currentExIndex = session.currentExerciseIndex;
 
         if (session.currentPhase === 'work') {
-          // Skipping execution phase -> Mark exercise as 'skipped'
           const currentEx = workout.exercises[currentExIndex];
           const newStatuses = { ...session.exerciseStatuses, [currentExIndex]: 'skipped' as const };
 
@@ -582,7 +415,6 @@ export const useWorkoutStore = create<WorkoutStore>()(
             }
           });
         } else {
-          // Tapping Pular during REST phase -> Only skip the rest and enter 5s prep for next exercise!
           const currentStatus = session.exerciseStatuses[currentExIndex] || 'completed';
           const newStatuses = { ...session.exerciseStatuses, [currentExIndex]: currentStatus };
 
@@ -591,9 +423,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
             const nextEx = workout.exercises[nextIndex];
             const prepSeconds = settings.prepCountdownSeconds || 5;
             if (settings.ttsVoiceEnabled) {
-              const isReps = nextEx.executionType === 'reps' || (nextEx.targetReps !== undefined && nextEx.targetReps > 0);
-              const repsInfo = isReps && nextEx.targetReps ? `. Meta: ${nextEx.targetReps} repetições` : '';
-              speechEngine.speak(`Descanso pulado. Prepare-se para: ${nextEx.name}${repsInfo}`, true, settings.volume);
+              const { label: nextLabel, repsInfo } = formatExerciseVoiceLabel(nextEx);
+              speechEngine.speak(`Descanso pulado. Prepare-se para: ${nextLabel}${repsInfo}`, true, settings.volume);
             }
 
             set({
@@ -611,24 +442,23 @@ export const useWorkoutStore = create<WorkoutStore>()(
             });
           } else {
             set({ activeSession: { ...session, exerciseStatuses: newStatuses } });
-            get().finishWorkout('completed');
+            get().finishWorkout(workout, 'completed');
           }
         }
       },
 
-      nextExercise: () => {
+      nextExercise: (workout: Workout) => {
         const session = get().activeSession;
         if (session?.currentPhase === 'work') {
-          get().skipExercise();
+          get().skipExercise(workout);
         } else {
-          get().completeExercise();
+          get().completeExercise(workout);
         }
       },
 
-      prevExercise: () => {
+      prevExercise: (workout: Workout) => {
         const session = get().activeSession;
         if (!session) return;
-        const workout = get().getActiveWorkout();
 
         if (session.currentPhase === 'rest') {
           const currentEx = workout.exercises[session.currentExerciseIndex];
@@ -657,15 +487,19 @@ export const useWorkoutStore = create<WorkoutStore>()(
         }
       },
 
-      finishWorkout: (status = 'completed') => {
+      /**
+       * finishWorkout: encerra sessão e retorna o WorkoutSessionLog.
+       * O componente chamador deve persistir via useAddHistoryLog().
+       */
+      finishWorkout: (workout: Workout, status = 'completed') => {
         const session = get().activeSession;
-        const { workouts, settings } = get();
+        const { settings } = get();
 
         wakeLockManager.release();
 
-        if (session) {
-          const workout = workouts.find(w => w.id === session.workoutId) || DEFAULT_TAF_WORKOUT;
+        let log: WorkoutSessionLog | null = null;
 
+        if (session) {
           const statuses = session.exerciseStatuses || {};
           const completedCount = Object.values(statuses).filter(s => s === 'completed').length;
           const skippedCount = Object.values(statuses).filter(s => s === 'skipped').length;
@@ -686,7 +520,6 @@ export const useWorkoutStore = create<WorkoutStore>()(
             ? Math.max(0, Math.floor((Date.now() - session.startTimestamp) / 1000))
             : session.totalTimeElapsed;
 
-          // Generate detailed evolution logs for each exercise
           const exerciseLogs: ExerciseEvolutionLog[] = workout.exercises.map((ex, idx) => {
             const exStatus = statuses[idx] || (idx < session.currentExerciseIndex ? 'completed' : 'skipped');
             const isCompleted = exStatus === 'completed';
@@ -699,22 +532,17 @@ export const useWorkoutStore = create<WorkoutStore>()(
               exerciseName: ex.name,
               executionType: isReps ? 'reps' : 'time',
               targetReps: ex.targetReps,
-              completedReps: isCompleted && isReps ? (ex.targetReps || 10) : (isCompleted ? 0 : 0),
+              completedReps: isCompleted && isReps ? (ex.targetReps || 10) : 0,
               workDurationSeconds: ex.workDurationSeconds || 60,
               realWorkSeconds: isCompleted ? (ex.workDurationSeconds || 60) : 0,
               status: exStatus,
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              setNumber: ex.setNumber,
+              totalSets: ex.totalSets
             };
           });
 
-          // Save into IndexedDB exerciseEvolution table
-          try {
-            db.exerciseEvolution.bulkPut(exerciseLogs).catch(err => console.warn('Dexie exerciseEvolution error:', err));
-          } catch (e) {
-            console.warn('db error:', e);
-          }
-
-          const log: WorkoutSessionLog = {
+          log = {
             id: `log-${Date.now()}`,
             workoutId: workout.id,
             workoutTitle: workout.title,
@@ -728,143 +556,25 @@ export const useWorkoutStore = create<WorkoutStore>()(
             exerciseStatuses: statuses,
             exerciseLogs
           };
-
-          set(state => ({
-            history: [log, ...state.history],
-            activeSession: null
-          }));
-        } else {
-          set({ activeSession: null });
-        }
-      },
-
-      deleteHistoryLog: (id: string) => {
-        set(state => ({
-          history: state.history.filter(h => h.id !== id)
-        }));
-      },
-
-      clearHistory: () => {
-        set({ history: [] });
-      },
-
-      addManualHistoryLog: (logData) => {
-        const newLog: WorkoutSessionLog = {
-          ...logData,
-          id: `log-${Date.now()}`
-        };
-
-        if (newLog.exerciseLogs && newLog.exerciseLogs.length > 0) {
-          try {
-            db.exerciseEvolution.bulkPut(newLog.exerciseLogs).catch(err => console.warn('Dexie exerciseEvolution error:', err));
-          } catch (e) {
-            console.warn('db error:', e);
-          }
         }
 
-        set(state => ({
-          history: [newLog, ...(state.history || [])]
-        }));
+        // Salva pendingLog para que o PlayerView possa observar e persistir via TanStack Query
+        set({ activeSession: null, pendingLog: log });
+        return log;
       },
 
-      saveWorkout: (updatedWorkout) => {
-        set(state => {
-          const exists = state.workouts.some(w => w.id === updatedWorkout.id);
-          const newWorkouts = exists
-            ? state.workouts.map(w => w.id === updatedWorkout.id ? updatedWorkout : w)
-            : [...state.workouts, updatedWorkout];
-          return { workouts: newWorkouts };
-        });
-      },
-
-      deleteWorkout: (id) => {
-        set(state => {
-          const updatedWorkouts = state.workouts.filter(w => w.id !== id);
-          return {
-            workouts: updatedWorkouts,
-            activeWorkoutId: state.activeWorkoutId === id ? (updatedWorkouts[0]?.id || '') : state.activeWorkoutId
-          };
-        });
-      },
-
-      resetAllDataToDefaults: () => {
-        set({
-          workouts: [],
-          activeWorkoutId: '',
-          exerciseCatalog: [],
-          runningWorkouts: [],
-          history: [],
-          runningHistory: [],
-          activeSession: null
-        });
-        try {
-          db.workouts.clear();
-          db.exerciseCatalog.clear();
-          db.history.clear();
-          db.runningWorkouts.clear();
-          db.runningHistory.clear();
-        } catch (e) {
-          console.warn('db clear error:', e);
-        }
-      },
+      clearPendingLog: () => set({ pendingLog: null }),
 
       updateSettings: (newSettings) => {
         set(state => ({ settings: { ...state.settings, ...newSettings } }));
       },
 
-      addExerciseToWorkout: (workoutId, exerciseData) => {
-        const workSecs = exerciseData.workDurationSeconds || 60;
-        const restSecs = exerciseData.restDurationSeconds || 60;
-        const newExercise: Exercise = {
-          ...exerciseData,
-          id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-          workDurationSeconds: workSecs,
-          restDurationSeconds: restSecs,
-          durationSeconds: workSecs + restSecs
-        };
-        set(state => ({
-          workouts: state.workouts.map(w => {
-            if (w.id === workoutId) {
-              return {
-                ...w,
-                exercises: [...w.exercises, newExercise],
-                updatedAt: new Date().toISOString()
-              };
-            }
-            return w;
-          })
-        }));
-      },
-
-      updateExerciseInWorkout: (workoutId, updatedExercise) => {
-        const workSecs = updatedExercise.workDurationSeconds || 60;
-        const restSecs = updatedExercise.restDurationSeconds || 60;
-        const finalExercise: Exercise = {
-          ...updatedExercise,
-          workDurationSeconds: workSecs,
-          restDurationSeconds: restSecs,
-          durationSeconds: workSecs + restSecs
-        };
-        set(state => ({
-          workouts: state.workouts.map(w => {
-            if (w.id === workoutId) {
-              return {
-                ...w,
-                exercises: w.exercises.map(e => e.id === finalExercise.id ? finalExercise : e),
-                updatedAt: new Date().toISOString()
-              };
-            }
-            return w;
-          })
-        }));
-      },
-
-      updateActiveExercise: (exerciseId, updates) => {
+      updateActiveExercise: (exerciseId: string, updates: { executionType?: ExerciseExecutionType; targetReps?: number; workDurationSeconds?: number; restDurationSeconds?: number }, currentWorkout: Workout) => {
         set(state => {
-          const activeWorkout = state.workouts.find(w => w.id === state.activeWorkoutId);
-          if (!activeWorkout) return state;
+          let updatedSession = state.activeSession;
+          if (!updatedSession || !currentWorkout) return state;
 
-          const updatedExercises = activeWorkout.exercises.map(ex => {
+          const updatedExercises = currentWorkout.exercises.map(ex => {
             if (ex.id !== exerciseId) return ex;
             const workSecs = updates.workDurationSeconds !== undefined ? Math.max(5, updates.workDurationSeconds) : (ex.workDurationSeconds || 60);
             const restSecs = updates.restDurationSeconds !== undefined ? Math.max(0, updates.restDurationSeconds) : (ex.restDurationSeconds || 60);
@@ -878,12 +588,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
             };
           });
 
-          const updatedWorkouts = state.workouts.map(w =>
-            w.id === activeWorkout.id ? { ...w, exercises: updatedExercises, updatedAt: new Date().toISOString() } : w
-          );
-
-          let updatedSession = state.activeSession;
-          if (updatedSession && updatedSession.workoutId === activeWorkout.id) {
+          if (updatedSession && updatedSession.workoutId === currentWorkout.id) {
             const currentEx = updatedExercises[updatedSession.currentExerciseIndex];
             if (currentEx && currentEx.id === exerciseId) {
               const isWork = updatedSession.currentPhase === 'work';
@@ -900,108 +605,18 @@ export const useWorkoutStore = create<WorkoutStore>()(
             }
           }
 
-          return {
-            workouts: updatedWorkouts,
-            activeSession: updatedSession
-          };
+          return { activeSession: updatedSession };
         });
       },
-
-      deleteExerciseFromWorkout: (workoutId, exerciseId) => {
-        set(state => ({
-          workouts: state.workouts.map(w => {
-            if (w.id === workoutId) {
-              return {
-                ...w,
-                exercises: w.exercises.filter(e => e.id !== exerciseId),
-                updatedAt: new Date().toISOString()
-              };
-            }
-            return w;
-          })
-        }));
-      },
-
-      reorderExercisesInWorkout: (workoutId, startIndex, endIndex) => {
-        set(state => ({
-          workouts: state.workouts.map(w => {
-            if (w.id === workoutId) {
-              const list = [...w.exercises];
-              const [removed] = list.splice(startIndex, 1);
-              list.splice(endIndex, 0, removed);
-              return {
-                ...w,
-                exercises: list,
-                updatedAt: new Date().toISOString()
-              };
-            }
-            return w;
-          })
-        }));
-      },
-
-      addRunningWorkout: (workoutData) => {
-        const newRun: RunningWorkout = {
-          ...workoutData,
-          id: `run-${Date.now()}`,
-          createdAt: new Date().toISOString()
-        };
-        set(state => ({
-          runningWorkouts: [newRun, ...(state.runningWorkouts || [])]
-        }));
-        return newRun;
-      },
-
-      updateRunningWorkout: (id, workoutData) => {
-        set(state => ({
-          runningWorkouts: (state.runningWorkouts || []).map(w =>
-            w.id === id ? { ...w, ...workoutData } : w
-          )
-        }));
-      },
-
-      deleteRunningWorkout: (id) => {
-        set(state => ({
-          runningWorkouts: (state.runningWorkouts || []).filter(w => w.id !== id)
-        }));
-      },
-
-      addRunningLog: (logData) => {
-        const paceSecPerKm = calculatePaceSecPerKm(logData.distanceKm, logData.durationSeconds);
-        const speedKmH = calculateSpeedKmH(logData.distanceKm, logData.durationSeconds);
-        const newLog: RunningLog = {
-          ...logData,
-          id: `run-log-${Date.now()}`,
-          paceSecPerKm,
-          speedKmH
-        };
-        set(state => ({
-          runningHistory: [newLog, ...(state.runningHistory || [])]
-        }));
-      },
-
-      deleteRunningLog: (id) => {
-        set(state => ({
-          runningHistory: (state.runningHistory || []).filter(l => l.id !== id)
-        }));
-      },
-
-      clearRunningHistory: () => {
-        set({ runningHistory: [] });
-      }
     }),
     {
-      name: 'taf-pmce-workout-storage',
-      storage: createJSONStorage(() => indexedDBStorage),
+      name: 'taf-pmce-session',
+      storage: createJSONStorage(() => localStorage),
+      // Só persiste settings e activeWorkoutId — não dados de treino
       partialize: (state) => ({
-        workouts: state.workouts,
-        activeWorkoutId: state.activeWorkoutId,
-        history: state.history,
         settings: state.settings,
+        activeWorkoutId: state.activeWorkoutId,
         activeSession: state.activeSession,
-        runningWorkouts: state.runningWorkouts,
-        runningHistory: state.runningHistory,
-        exerciseCatalog: state.exerciseCatalog
       })
     }
   )

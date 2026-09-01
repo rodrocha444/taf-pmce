@@ -9,15 +9,16 @@ import {
   X
 } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
+import { useHistory, useDeleteHistoryLog, useAddHistoryLog, useWorkouts } from '../../hooks';
 import { formatDate, formatTimeHoursMins, formatSecondsToMMSS } from '../../utils/formatters';
 import { ConfirmModal } from '../molecules';
-import type { ExerciseEvolutionLog } from '../../types';
+import type { ExerciseEvolutionLog, WorkoutSessionLog } from '../../types';
 
 export const HistoryView: React.FC = () => {
-  const history = useWorkoutStore(state => state.history || []);
-  const workouts = useWorkoutStore(state => state.workouts || []);
-  const deleteHistoryLog = useWorkoutStore(state => state.deleteHistoryLog);
-  const addManualHistoryLog = useWorkoutStore(state => state.addManualHistoryLog);
+  const { data: history = [] } = useHistory();
+  const { data: workouts = [] } = useWorkouts();
+  const deleteHistoryLog = useDeleteHistoryLog();
+  const addHistoryLog = useAddHistoryLog();
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export const HistoryView: React.FC = () => {
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string>(workouts[0]?.id || '');
   const [durationMins, setDurationMins] = useState('28');
   const [durationSecs, setDurationSecs] = useState('30');
-  
+
   // Selected workout exercises execution status and reps tracking
   const selectedWorkout = workouts.find(w => w.id === selectedWorkoutId) || workouts[0];
   const [exerciseStatusMap, setExerciseStatusMap] = useState<Record<string, { completed: boolean; reps: string; timeSecs: string }>>({});
@@ -35,19 +36,7 @@ export const HistoryView: React.FC = () => {
   const showManualHistoryModal = useWorkoutStore(state => state.showManualHistoryModal);
   const setShowManualHistoryModal = useWorkoutStore(state => state.setShowManualHistoryModal);
 
-  React.useEffect(() => {
-    if (showManualHistoryModal) {
-      handleOpenManualModal();
-    }
-  }, [showManualHistoryModal]);
-
-  const handleCloseManualModal = () => {
-    setShowManualModal(false);
-    setShowManualHistoryModal(false);
-  };
-
-  // Initialize or reset exercise tracking when modal opens or workout changes
-  const handleOpenManualModal = () => {
+  const handleOpenManualModal = React.useCallback(() => {
     const initialMap: Record<string, { completed: boolean; reps: string; timeSecs: string }> = {};
     if (selectedWorkout) {
       selectedWorkout.exercises.forEach(ex => {
@@ -60,6 +49,17 @@ export const HistoryView: React.FC = () => {
     }
     setExerciseStatusMap(initialMap);
     setShowManualModal(true);
+  }, [selectedWorkout]);
+
+  React.useEffect(() => {
+    if (showManualHistoryModal) {
+      handleOpenManualModal();
+    }
+  }, [showManualHistoryModal, handleOpenManualModal]);
+
+  const handleCloseManualModal = () => {
+    setShowManualModal(false);
+    setShowManualHistoryModal(false);
   };
 
   const handleWorkoutChange = (wId: string) => {
@@ -79,7 +79,7 @@ export const HistoryView: React.FC = () => {
 
   const handleConfirmSingleDelete = () => {
     if (deleteTargetId) {
-      deleteHistoryLog(deleteTargetId);
+      deleteHistoryLog.mutate(deleteTargetId);
       setDeleteTargetId(null);
     }
   };
@@ -96,7 +96,7 @@ export const HistoryView: React.FC = () => {
     const exerciseLogs: ExerciseEvolutionLog[] = selectedWorkout.exercises.map((ex, idx) => {
       const state = exerciseStatusMap[ex.id] || { completed: true, reps: String(ex.targetReps || 10), timeSecs: String(ex.workDurationSeconds || 60) };
       const status: 'completed' | 'skipped' = state.completed ? 'completed' : 'skipped';
-      
+
       exerciseStatusesRecord[idx] = status;
       if (state.completed) completedCount++;
       else skippedCount++;
@@ -118,7 +118,8 @@ export const HistoryView: React.FC = () => {
       };
     });
 
-    addManualHistoryLog({
+    const log: WorkoutSessionLog = {
+      id: `log-${Date.now()}`,
       workoutId: selectedWorkout.id,
       workoutTitle: selectedWorkout.title,
       date: new Date().toISOString(),
@@ -130,8 +131,9 @@ export const HistoryView: React.FC = () => {
       status: 'completed',
       exerciseStatuses: exerciseStatusesRecord,
       exerciseLogs
-    });
+    };
 
+    addHistoryLog.mutate(log);
     handleCloseManualModal();
   };
 
@@ -201,8 +203,8 @@ export const HistoryView: React.FC = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                          log.status === 'completed' 
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                          log.status === 'completed'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                             : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                         }`}>
                           {log.status === 'completed' ? 'Concluído' : 'Cancelado'}
@@ -244,7 +246,6 @@ export const HistoryView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Expanded Exercise Evolution Logs */}
                   {isExpanded && hasExLogs && (
                     <div className="pt-2 border-t border-zinc-800/80 space-y-1.5 font-mono text-xs">
                       <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider block">
@@ -286,7 +287,7 @@ export const HistoryView: React.FC = () => {
         )}
       </div>
 
-      {/* MODAL: REGISTRAR TREINO MANULMENTE */}
+      {/* MODAL: REGISTRAR TREINO MANUALMENTE */}
       {showManualModal && selectedWorkout && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <form
@@ -359,8 +360,8 @@ export const HistoryView: React.FC = () => {
                     <div
                       key={ex.id}
                       className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 text-xs ${
-                        state.completed 
-                          ? 'bg-zinc-900 border-zinc-800' 
+                        state.completed
+                          ? 'bg-zinc-900 border-zinc-800'
                           : 'bg-zinc-900/40 border-zinc-800/40 opacity-50'
                       }`}
                     >

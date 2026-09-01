@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, BookOpen } from 'lucide-react';
+import { Plus, BookOpen, RefreshCw, AlertCircle } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
+import { useExerciseCatalog, useAddCatalogExercise, useSaveCatalogExercise, useDeleteCatalogExercise, useHistory } from '../../hooks';
 import type { ExerciseCatalogItem, ExerciseExecutionType } from '../../types';
 import { ConfirmModal } from '../molecules';
 import { Button, Input, Select, ModalBase } from '../atoms';
@@ -9,27 +10,21 @@ import { ExerciseCatalogCard } from '../organisms';
 import { formatDate } from '../../utils/formatters';
 
 export const ExercisesView: React.FC = () => {
-  const exerciseCatalog = useWorkoutStore(state => state.exerciseCatalog || []);
-  const addCatalogExercise = useWorkoutStore(state => state.addCatalogExercise);
-  const deleteCatalogExercise = useWorkoutStore(state => state.deleteCatalogExercise);
-  const history = useWorkoutStore(state => state.history || []);
+  const { data: exerciseCatalog = [] } = useExerciseCatalog();
+  const { data: history = [] } = useHistory();
+  const addCatalogExercise = useAddCatalogExercise();
+  const saveCatalogExercise = useSaveCatalogExercise();
+  const deleteCatalogExercise = useDeleteCatalogExercise();
+
+  const isSaving = addCatalogExercise.isPending || saveCatalogExercise.isPending;
 
   const showCreateExerciseModal = useWorkoutStore(state => state.showCreateExerciseModal);
   const setShowCreateExerciseModal = useWorkoutStore(state => state.setShowCreateExerciseModal);
 
-  React.useEffect(() => {
-    if (showCreateExerciseModal) {
-      openCreateModal();
-    }
-  }, [showCreateExerciseModal]);
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setShowCreateExerciseModal(false);
-  };
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingItem, setEditingItem] = useState<ExerciseCatalogItem | null>(null);
   const [deleteTargetItem, setDeleteTargetItem] = useState<ExerciseCatalogItem | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -41,7 +36,20 @@ export const ExercisesView: React.FC = () => {
     setName('');
     setExecutionType('reps');
     setFocusNotes('');
+    setErrorMessage(null);
     setShowModal(true);
+  };
+
+  React.useEffect(() => {
+    if (showCreateExerciseModal) {
+      openCreateModal();
+    }
+  }, [showCreateExerciseModal]);
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setShowCreateExerciseModal(false);
+    setErrorMessage(null);
   };
 
   const openEditModal = (item: ExerciseCatalogItem) => {
@@ -49,40 +57,45 @@ export const ExercisesView: React.FC = () => {
     setName(item.name);
     setExecutionType(item.executionType);
     setFocusNotes(item.focusNotes || '');
+    setErrorMessage(null);
     setShowModal(true);
   };
 
-  const handleSaveForm = (e: React.FormEvent) => {
+  const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    setErrorMessage(null);
 
-    if (editingItem) {
-      useWorkoutStore.setState(state => ({
-        exerciseCatalog: (state.exerciseCatalog || []).map(c => 
-          c.id === editingItem.id ? {
-            ...c,
-            name: name.trim(),
-            executionType,
-            focusNotes: focusNotes.trim()
-          } : c
-        )
-      }));
-    } else {
-      addCatalogExercise({
-        name: name.trim(),
-        executionType,
-        defaultWorkDurationSeconds: 60,
-        defaultRestDurationSeconds: 60,
-        focusNotes: focusNotes.trim()
-      });
+    try {
+      if (editingItem) {
+        const updated: ExerciseCatalogItem = {
+          ...editingItem,
+          name: name.trim(),
+          executionType,
+          focusNotes: focusNotes.trim()
+        };
+        await saveCatalogExercise.mutateAsync(updated);
+      } else {
+        const newItem: ExerciseCatalogItem = {
+          id: `cat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          name: name.trim(),
+          executionType,
+          defaultWorkDurationSeconds: 60,
+          defaultRestDurationSeconds: 60,
+          focusNotes: focusNotes.trim()
+        };
+        await addCatalogExercise.mutateAsync(newItem);
+      }
+      handleCloseModal();
+    } catch (err: any) {
+      console.error('[ExercisesView] Error saving exercise:', err);
+      setErrorMessage(err?.message || 'Erro ao salvar exercício no Supabase.');
     }
-
-    handleCloseModal();
   };
 
   const handleConfirmDelete = () => {
     if (deleteTargetItem) {
-      deleteCatalogExercise(deleteTargetItem.id);
+      deleteCatalogExercise.mutate(deleteTargetItem.id);
       setDeleteTargetItem(null);
     }
   };
@@ -115,9 +128,6 @@ export const ExercisesView: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
-      {/* Exercises List Cards */}
-
-      {/* Exercises List Cards */}
       {exerciseCatalog.length === 0 ? (
         <EmptyState
           icon={<BookOpen className="w-10 h-10 text-amber-400" />}
@@ -159,10 +169,18 @@ export const ExercisesView: React.FC = () => {
               variant="ghost"
               size="xs"
               onClick={handleCloseModal}
+              disabled={isSaving}
             >
               ✕
             </Button>
           </div>
+
+          {errorMessage && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
           <FormField label="Nome do Exercício">
             <Input
@@ -195,11 +213,25 @@ export const ExercisesView: React.FC = () => {
           </FormField>
 
           <div className="grid grid-cols-2 gap-2 pt-2">
-            <Button type="button" variant="zinc" size="md" fullWidth onClick={() => setShowModal(false)}>
+            <Button
+              type="button"
+              variant="zinc"
+              size="md"
+              fullWidth
+              onClick={handleCloseModal}
+              disabled={isSaving}
+            >
               Cancelar
             </Button>
-            <Button type="submit" variant="amber" size="md" fullWidth>
-              Salvar no Catálogo
+            <Button
+              type="submit"
+              variant="amber"
+              size="md"
+              fullWidth
+              disabled={isSaving}
+              icon={isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : undefined}
+            >
+              {isSaving ? 'Salvando...' : 'Salvar no Catálogo'}
             </Button>
           </div>
         </form>

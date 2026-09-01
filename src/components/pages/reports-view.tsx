@@ -7,13 +7,13 @@ import {
   Calendar, 
   Dumbbell
 } from 'lucide-react';
-import { useWorkoutStore } from '../../store/workout-store';
+import { useHistory, useRunningHistory } from '../../hooks';
 import { formatTimeHoursMins, formatDate } from '../../utils/formatters';
 import type { ExerciseEvolutionLog } from '../../types';
 
 export const ReportsView: React.FC = () => {
-  const history = useWorkoutStore(state => state.history || []);
-  const runningHistory = useWorkoutStore(state => state.runningHistory || []);
+  const { data: history = [] } = useHistory();
+  const { data: runningHistory = [] } = useRunningHistory();
 
   const completedWorkouts = history.filter(h => h.status === 'completed');
   const totalWorkoutSeconds = completedWorkouts.reduce((acc, h) => acc + (h.realDurationSeconds || h.durationSeconds || 0), 0);

@@ -11,8 +11,15 @@ import {
   ChevronUp,
   Flag
 } from 'lucide-react';
-import { useWorkoutStore } from '../../store/workout-store';
-import type { RunningWorkout, RunningTargetMode, RunningLapDetail } from '../../types';
+import {
+  useRunningWorkouts,
+  useSaveRunningWorkout,
+  useDeleteRunningWorkout,
+  useRunningHistory,
+  useAddRunningLog,
+  useDeleteRunningLog,
+} from '../../hooks';
+import type { RunningWorkout, RunningTargetMode, RunningLapDetail, RunningLog } from '../../types';
 import { formatPace, formatSecondsToMMSS, formatDate, calculatePaceSecPerKm, calculateSpeedKmH } from '../../utils/formatters';
 
 interface ManualLapItem {
@@ -22,13 +29,44 @@ interface ManualLapItem {
 }
 
 export const RunningView: React.FC = () => {
-  const runningWorkouts = useWorkoutStore(state => state.runningWorkouts || []);
-  const runningHistory = useWorkoutStore(state => state.runningHistory || []);
-  const addRunningWorkout = useWorkoutStore(state => state.addRunningWorkout);
-  const updateRunningWorkout = useWorkoutStore(state => state.updateRunningWorkout);
-  const deleteRunningWorkout = useWorkoutStore(state => state.deleteRunningWorkout);
-  const addRunningLog = useWorkoutStore(state => state.addRunningLog);
-  const deleteRunningLog = useWorkoutStore(state => state.deleteRunningLog);
+  const { data: runningWorkouts = [] } = useRunningWorkouts();
+  const { data: runningHistory = [] } = useRunningHistory();
+  const saveRunningWorkout = useSaveRunningWorkout();
+  const deleteRunningWorkoutMutation = useDeleteRunningWorkout();
+  const addRunningLogMutation = useAddRunningLog();
+  const deleteRunningLogMutation = useDeleteRunningLog();
+
+  const addRunningWorkout = (data: Omit<RunningWorkout, 'id' | 'createdAt'>) => {
+    const newWorkout: RunningWorkout = {
+      ...data,
+      id: `run-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      createdAt: new Date().toISOString()
+    };
+    saveRunningWorkout.mutate(newWorkout);
+  };
+
+  const updateRunningWorkout = (id: string, data: Partial<RunningWorkout>) => {
+    const existing = runningWorkouts.find(w => w.id === id);
+    if (!existing) return;
+    saveRunningWorkout.mutate({ ...existing, ...data });
+  };
+
+  const deleteRunningWorkout = (id: string) => {
+    deleteRunningWorkoutMutation.mutate(id);
+  };
+
+  const addRunningLog = (logData: Omit<RunningLog, 'id' | 'paceSecPerKm' | 'speedKmH'>) => {
+    const newLog: Omit<RunningLog, 'paceSecPerKm' | 'speedKmH'> = {
+      ...logData,
+      id: `run-log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
+    };
+    addRunningLogMutation.mutate(newLog);
+  };
+
+  const deleteRunningLog = (id: string) => {
+    deleteRunningLogMutation.mutate(id);
+  };
+
   const [activeTab, setActiveTab] = useState<'workouts' | 'history' | 'calculator'>('workouts');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 

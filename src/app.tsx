@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { BottomNav, Header } from './components/organisms';
-import { setupAutoSyncLifecycle } from './services/cloud-sync';
 import {
   WorkoutsView,
   ExercisesView,
@@ -17,11 +16,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const isHeaderHidden = location.pathname === '/player' || location.pathname === '/edit';
   const mainRef = React.useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const cleanup = setupAutoSyncLifecycle();
-    return cleanup;
-  }, []);
 
   useEffect(() => {
     if (mainRef.current) {

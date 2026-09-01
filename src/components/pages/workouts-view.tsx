@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Plus, Edit } from 'lucide-react';
+import { Dumbbell, Plus, Edit, RefreshCw, AlertCircle } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
+import { useWorkouts, useSaveWorkout, useDeleteWorkout } from '../../hooks';
+import { useHistory } from '../../hooks';
 import { ConfirmModal } from '../molecules';
 import { Button, Input, ModalBase } from '../atoms';
 import { EmptyState, FormField } from '../molecules';
@@ -10,14 +12,19 @@ import type { Workout } from '../../types';
 
 export const WorkoutsView: React.FC = () => {
   const navigate = useNavigate();
-  const workouts = useWorkoutStore(state => state.workouts);
+
+  // Server state
+  const { data: workouts = [] } = useWorkouts();
+  const { data: history = [] } = useHistory();
+  const saveWorkout = useSaveWorkout();
+  const deleteWorkout = useDeleteWorkout();
+
+  // Ephemeral store
   const activeWorkoutId = useWorkoutStore(state => state.activeWorkoutId);
   const setActiveWorkoutId = useWorkoutStore(state => state.setActiveWorkoutId);
   const startWorkout = useWorkoutStore(state => state.startWorkout);
-  const createWorkout = useWorkoutStore(state => state.createWorkout);
-  const deleteWorkout = useWorkoutStore(state => state.deleteWorkout);
-  const updateWorkoutDetails = useWorkoutStore(state => state.updateWorkoutDetails);
-  const history = useWorkoutStore(state => state.history);
+  const showCreateWorkoutModal = useWorkoutStore(state => state.showCreateWorkoutModal);
+  const setShowCreateWorkoutModal = useWorkoutStore(state => state.setShowCreateWorkoutModal);
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
@@ -26,15 +33,14 @@ export const WorkoutsView: React.FC = () => {
 
   const [formTitle, setFormTitle] = useState<string>('');
   const [formDescription, setFormDescription] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleOpenCreateModal = () => {
     setFormTitle('');
     setFormDescription('');
+    setErrorMessage(null);
     setShowCreateModal(true);
   };
-
-  const showCreateWorkoutModal = useWorkoutStore(state => state.showCreateWorkoutModal);
-  const setShowCreateWorkoutModal = useWorkoutStore(state => state.setShowCreateWorkoutModal);
 
   React.useEffect(() => {
     if (showCreateWorkoutModal) {
@@ -45,32 +51,65 @@ export const WorkoutsView: React.FC = () => {
   const handleCloseCreateModal = () => {
     setShowCreateModal(false);
     setShowCreateWorkoutModal(false);
+    setErrorMessage(null);
   };
 
-  const handleSaveNewWorkout = (e: React.FormEvent) => {
+  const handleSaveNewWorkout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim()) return;
-    createWorkout(formTitle, formDescription);
-    handleCloseCreateModal();
-    navigate('/edit');
+    setErrorMessage(null);
+
+    const now = new Date().toISOString();
+    const newWorkout: Workout = {
+      id: `workout-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      title: formTitle.trim(),
+      description: formDescription.trim(),
+      exercises: [],
+      isDefault: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    try {
+      await saveWorkout.mutateAsync(newWorkout);
+      setActiveWorkoutId(newWorkout.id);
+      handleCloseCreateModal();
+      navigate('/edit');
+    } catch (err: any) {
+      console.error('[WorkoutsView] Error creating workout:', err);
+      setErrorMessage(err?.message || 'Erro ao conectar ao Supabase. Verifique sua conexão.');
+    }
   };
 
   const handleOpenEditDetailsModal = (w: Workout) => {
     setEditingDetailsWorkout(w);
     setFormTitle(w.title);
     setFormDescription(w.description || '');
+    setErrorMessage(null);
   };
 
-  const handleSaveDetails = (e: React.FormEvent) => {
+  const handleSaveDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingDetailsWorkout || !formTitle.trim()) return;
-    updateWorkoutDetails(editingDetailsWorkout.id, formTitle, formDescription);
-    setEditingDetailsWorkout(null);
+    setErrorMessage(null);
+
+    try {
+      await saveWorkout.mutateAsync({
+        ...editingDetailsWorkout,
+        title: formTitle.trim(),
+        description: formDescription.trim(),
+        updatedAt: new Date().toISOString(),
+      });
+      setEditingDetailsWorkout(null);
+    } catch (err: any) {
+      console.error('[WorkoutsView] Error updating workout details:', err);
+      setErrorMessage(err?.message || 'Erro ao salvar alterações no Supabase.');
+    }
   };
 
   const handleStartWorkout = (w: Workout) => {
     setActiveWorkoutId(w.id);
-    startWorkout(w.id);
+    startWorkout(w);
     navigate('/player');
   };
 
@@ -81,7 +120,6 @@ export const WorkoutsView: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
-      {/* Workouts Grid */}
       {workouts.length === 0 ? (
         <EmptyState
           icon={<Dumbbell className="w-10 h-10 text-amber-400" />}
@@ -122,6 +160,13 @@ export const WorkoutsView: React.FC = () => {
             <span>Criar Novo Treino</span>
           </h3>
 
+          {errorMessage && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <div className="space-y-3">
             <FormField label="Título do Treino">
               <Input
@@ -146,11 +191,25 @@ export const WorkoutsView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <Button type="button" variant="zinc" size="md" fullWidth onClick={handleCloseCreateModal}>
+            <Button
+              type="button"
+              variant="zinc"
+              size="md"
+              fullWidth
+              onClick={handleCloseCreateModal}
+              disabled={saveWorkout.isPending}
+            >
               Cancelar
             </Button>
-            <Button type="submit" variant="amber" size="md" fullWidth>
-              Criar Treino
+            <Button
+              type="submit"
+              variant="amber"
+              size="md"
+              fullWidth
+              disabled={saveWorkout.isPending}
+              icon={saveWorkout.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 stroke-[3]" />}
+            >
+              {saveWorkout.isPending ? 'Criando Treino...' : 'Criar Treino'}
             </Button>
           </div>
         </form>
@@ -163,6 +222,13 @@ export const WorkoutsView: React.FC = () => {
             <Edit className="w-5 h-5 text-amber-400" />
             <span>Editar Detalhes do Treino</span>
           </h3>
+
+          {errorMessage && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
           <div className="space-y-3">
             <FormField label="Título do Treino">
@@ -186,11 +252,25 @@ export const WorkoutsView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <Button type="button" variant="zinc" size="md" fullWidth onClick={() => setEditingDetailsWorkout(null)}>
+            <Button
+              type="button"
+              variant="zinc"
+              size="md"
+              fullWidth
+              onClick={() => setEditingDetailsWorkout(null)}
+              disabled={saveWorkout.isPending}
+            >
               Cancelar
             </Button>
-            <Button type="submit" variant="amber" size="md" fullWidth>
-              Salvar
+            <Button
+              type="submit"
+              variant="amber"
+              size="md"
+              fullWidth
+              disabled={saveWorkout.isPending}
+              icon={saveWorkout.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : undefined}
+            >
+              {saveWorkout.isPending ? 'Salvando...' : 'Salvar'}
             </Button>
           </div>
         </form>
@@ -205,7 +285,7 @@ export const WorkoutsView: React.FC = () => {
         variant="danger"
         onConfirm={() => {
           if (deleteWorkoutTarget) {
-            deleteWorkout(deleteWorkoutTarget.id);
+            deleteWorkout.mutate(deleteWorkoutTarget.id);
             setDeleteWorkoutTarget(null);
           }
         }}

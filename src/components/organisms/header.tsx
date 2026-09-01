@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Dumbbell, Plus, Settings, Cloud, RefreshCw } from 'lucide-react';
+import { useIsFetching, useIsMutating } from '@tanstack/react-query';
 import { useWorkoutStore } from '../../store/workout-store';
 import { Button } from '../atoms';
-import { getSyncStatus, subscribeSyncStatus, uploadToCloud, getStoredSyncId, type SyncState } from '../../services/cloud-sync';
 
 export const Header: React.FC = () => {
   const location = useLocation();
@@ -11,18 +11,9 @@ export const Header: React.FC = () => {
   const setShowCreateExerciseModal = useWorkoutStore(state => state.setShowCreateExerciseModal);
   const setShowManualHistoryModal = useWorkoutStore(state => state.setShowManualHistoryModal);
 
-  const [syncState, setSyncState] = useState<SyncState>(getSyncStatus());
-
-  useEffect(() => {
-    return subscribeSyncStatus(state => setSyncState(state));
-  }, []);
-
-  const handleManualSync = () => {
-    const syncId = getStoredSyncId();
-    if (syncId) {
-      uploadToCloud(syncId);
-    }
-  };
+  const isFetching = useIsFetching();
+  const isMutating = useIsMutating();
+  const isSyncing = isFetching > 0 || isMutating > 0;
 
   // Hide top header in active player fullscreen mode or edit view
   if (location.pathname === '/player' || location.pathname === '/edit') {
@@ -51,35 +42,23 @@ export const Header: React.FC = () => {
                 TAF <span className="text-amber-400">PMCE</span>
               </span>
               
-              {/* Cloud Sync Status Icon Only */}
+              {/* Cloud Sync Status Indicator based on TanStack Query status */}
               <span
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleManualSync();
-                }}
-                className={`p-1 rounded-md border flex items-center justify-center cursor-pointer transition-all ${
-                  syncState === 'syncing'
+                className={`p-1 rounded-md border flex items-center justify-center transition-all ${
+                  isSyncing
                     ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse'
-                    : syncState === 'synced'
-                    ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20'
-                    : syncState === 'error'
-                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                    : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white'
+                    : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
                 }`}
                 title={
-                  syncState === 'synced'
-                    ? 'Sincronizado na Nuvem. Clique para atualizar.'
-                    : syncState === 'syncing'
-                    ? 'Sincronizando com a nuvem...'
-                    : 'Clique para sincronizar na nuvem'
+                  isSyncing
+                    ? 'Sincronizando com Supabase...'
+                    : 'Conectado à nuvem (Supabase)'
                 }
               >
-                {syncState === 'syncing' ? (
+                {isSyncing ? (
                   <RefreshCw className="w-3 h-3 animate-spin text-amber-400" />
-                ) : syncState === 'synced' ? (
-                  <Cloud className="w-3 h-3 text-cyan-400" />
                 ) : (
-                  <Cloud className="w-3 h-3 text-zinc-400" />
+                  <Cloud className="w-3 h-3 text-cyan-400" />
                 )}
               </span>
             </div>

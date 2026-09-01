@@ -22,6 +22,8 @@ import {
   Target
 } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
+import { useWorkouts, useAddHistoryLog } from '../../hooks';
+import { DEFAULT_TAF_WORKOUT } from '../../data/default-workout';
 import { formatSecondsToMMSS, getExerciseStartTime, getTotalWorkoutDuration } from '../../utils/formatters';
 import { ProgressRing } from '../molecules';
 import { wakeLockManager } from '../../utils/wake-lock';
@@ -30,9 +32,18 @@ type ConfirmModalType = 'complete' | 'skip' | 'exit' | null;
 
 export const PlayerView: React.FC = () => {
   const navigate = useNavigate();
-  const workout = useWorkoutStore(state => state.getActiveWorkout());
+
+  // Server state — dados dos treinos
+  const { data: workouts = [] } = useWorkouts();
+  const addHistoryLog = useAddHistoryLog();
+
+  // Ephemeral session store
+  const activeWorkoutId = useWorkoutStore(state => state.activeWorkoutId);
   const activeSession = useWorkoutStore(state => state.activeSession);
   const settings = useWorkoutStore(state => state.settings);
+
+  // Resolve workout from server data
+  const workout = workouts.find(w => w.id === activeWorkoutId) ?? workouts[0] ?? DEFAULT_TAF_WORKOUT;
 
   const startWorkout = useWorkoutStore(state => state.startWorkout);
   const pauseWorkout = useWorkoutStore(state => state.pauseWorkout);
@@ -58,6 +69,17 @@ export const PlayerView: React.FC = () => {
   const [editWorkSeconds, setEditWorkSeconds] = useState<number>(0);
   const [editRestMinutes, setEditRestMinutes] = useState<number>(1);
   const [editRestSeconds, setEditRestSeconds] = useState<number>(0);
+
+  const pendingLog = useWorkoutStore(state => state.pendingLog);
+  const clearPendingLog = useWorkoutStore(state => state.clearPendingLog);
+
+  // Persiste logs gerados automaticamente (treino completo via timer)
+  useEffect(() => {
+    if (pendingLog) {
+      addHistoryLog.mutate(pendingLog);
+      clearPendingLog();
+    }
+  }, [pendingLog, addHistoryLog, clearPendingLog]);
 
   // Continuous 1-second wall-clock timer tick (NEVER PAUSES, persists even if app closes)
   useEffect(() => {
@@ -103,11 +125,11 @@ export const PlayerView: React.FC = () => {
     if (!activeSession || activeSession.isPaused) return;
 
     const interval = setInterval(() => {
-      tickSession();
+      tickSession(workout);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activeSession, tickSession]);
+  }, [activeSession, tickSession, workout]);
 
   // Handle 5-second countdown lock for confirmation modal buttons
   useEffect(() => {
@@ -136,7 +158,7 @@ export const PlayerView: React.FC = () => {
         console.warn('Vibration failed:', e);
       }
     }
-  }, [activeSession?.currentExerciseIndex, activeSession?.currentPhase, activeSession?.isPreparing]);
+  }, [activeSession, activeSession?.currentExerciseIndex, activeSession?.currentPhase, activeSession?.isPreparing]);
 
   if (!activeSession) {
     return (
@@ -157,7 +179,7 @@ export const PlayerView: React.FC = () => {
               Voltar ao Início
             </button>
             <button
-              onClick={() => startWorkout(workout.id)}
+              onClick={() => startWorkout(workout)}
               className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-xs shadow-md shadow-amber-500/20"
             >
               Iniciar Treino
@@ -266,7 +288,7 @@ export const PlayerView: React.FC = () => {
       targetReps: repsVal,
       workDurationSeconds: totalWorkSecs,
       restDurationSeconds: totalRestSecs
-    });
+    }, workout);
 
     setIsEditingExercise(false);
     if (wasRunningBeforeModal) {
@@ -276,17 +298,18 @@ export const PlayerView: React.FC = () => {
 
   const handleConfirmComplete = () => {
     setConfirmModal(null);
-    completeExercise();
+    completeExercise(workout);
   };
 
   const handleConfirmSkip = () => {
     setConfirmModal(null);
-    skipExercise();
+    skipExercise(workout);
   };
 
   const handleConfirmExit = () => {
     setConfirmModal(null);
-    finishWorkout('cancelled');
+    const log = finishWorkout(workout, 'cancelled');
+    if (log) addHistoryLog.mutate(log);
     navigate('/');
   };
 
@@ -363,7 +386,14 @@ export const PlayerView: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">PRÓXIMO EXERCÍCIO</p>
+              <div className="flex items-center justify-center gap-2">
+                <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-semibold">PRÓXIMO EXERCÍCIO</p>
+                {currentExercise?.setNumber && currentExercise?.totalSets && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-800 text-amber-300 font-mono font-bold text-[10px]">
+                    SÉRIE {currentExercise.setNumber}/{currentExercise.totalSets}
+                  </span>
+                )}
+              </div>
               <h2 className="text-xl font-black text-white font-['Outfit']">{currentExercise?.name}</h2>
               {currentExercise?.targetReps !== undefined && currentExercise.targetReps > 0 && (
                 <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 font-bold text-xs mt-0.5">
@@ -381,7 +411,7 @@ export const PlayerView: React.FC = () => {
             {/* Exercise Header Badges */}
             <div className="w-full text-center space-y-1">
               {/* Dynamic Phase Indicator Badge */}
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center gap-2">
                 {isWorkPhase ? (
                   <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400 font-black text-[11px] uppercase tracking-wider">
                     <Flame className="w-3 h-3 fill-current text-amber-400" />
@@ -392,6 +422,12 @@ export const PlayerView: React.FC = () => {
                     <Coffee className="w-3 h-3 text-cyan-400" />
                     <span>DESCANSO</span>
                   </div>
+                )}
+
+                {currentExercise?.setNumber && currentExercise?.totalSets && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-amber-300 font-mono font-bold text-[11px]">
+                    Série {currentExercise.setNumber}/{currentExercise.totalSets}
+                  </span>
                 )}
               </div>
 
@@ -752,7 +788,14 @@ export const PlayerView: React.FC = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-white flex items-center gap-2 font-['Outfit']">
                 <Edit2 className="w-5 h-5 text-amber-400" />
-                <span>Editar {currentExercise.name}</span>
+                <span>
+                  Editar {currentExercise.name}
+                  {currentExercise.setNumber && currentExercise.totalSets && (
+                    <span className="text-amber-400 ml-1.5 text-sm font-normal">
+                      (Série {currentExercise.setNumber}/{currentExercise.totalSets})
+                    </span>
+                  )}
+                </span>
               </h3>
             </div>
 

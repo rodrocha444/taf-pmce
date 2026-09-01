@@ -55,11 +55,16 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
           </div>
 
           <div className="flex flex-col">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-zinc-400">#{index + 1}</span>
               <h3 className="text-base font-bold text-white group-hover:text-amber-300 transition-colors">
                 {exercise.name}
               </h3>
+              {exercise.setNumber && exercise.totalSets && (
+                <Badge variant="zinc" title={`Série ${exercise.setNumber} de ${exercise.totalSets}`}>
+                  Série {exercise.setNumber}/{exercise.totalSets}
+                </Badge>
+              )}
               {status === 'completed' && (
                 <Badge variant="emerald">✓ Concluído</Badge>
               )}
