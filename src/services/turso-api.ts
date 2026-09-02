@@ -1,7 +1,7 @@
 /**
  * turso-api.ts
- * Camada de acesso a dados (CRUD) local-first com sincronização Turso LibSQL e Drizzle ORM.
- * Fornece persistência limpa via localStorage com sincronização opcional na nuvem.
+ * Camada de acesso a dados (CRUD) direta no Turso LibSQL via Drizzle ORM.
+ * Sem persistência em localStorage (exige configuração válida do banco de dados).
  */
 import { eq, desc, asc } from 'drizzle-orm';
 import { db, isTursoConfigured } from '../db';
@@ -25,33 +25,14 @@ import type {
   RunningLog,
 } from '../types';
 
-// ─── Local Storage Keys ─────────────────────────────────────────────────────
+export const DB_NOT_CONFIGURED_ERROR =
+  'Banco de dados não configurado. Defina as variáveis VITE_TURSO_DATABASE_URL e VITE_TURSO_AUTH_TOKEN no .env para carregar e salvar dados.';
 
-const STORAGE_KEYS = {
-  WORKOUTS: 'taf_workouts_v2',
-  HISTORY: 'taf_workout_history_v2',
-  CATALOG: 'taf_exercise_catalog_v2',
-  RUNNING_WORKOUTS: 'taf_running_workouts_v2',
-  RUNNING_HISTORY: 'taf_running_history_v2',
-};
-
-function readLocal<T>(key: string, defaultValue: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return defaultValue;
-    return JSON.parse(raw) as T;
-  } catch (err) {
-    console.warn(`[LocalStorage] Falha ao ler ${key}:`, err);
-    return defaultValue;
+function getDb() {
+  if (!db || !isTursoConfigured) {
+    throw new Error(DB_NOT_CONFIGURED_ERROR);
   }
-}
-
-function writeLocal<T>(key: string, value: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (err) {
-    console.warn(`[LocalStorage] Falha ao salvar ${key}:`, err);
-  }
+  return db;
 }
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
@@ -134,88 +115,44 @@ function mapRunningHistory(row: RunningHistoryRow): RunningLog {
 
 export const workoutsApi = {
   getAll: async (): Promise<Workout[]> => {
-    const localList = readLocal<Workout[]>(STORAGE_KEYS.WORKOUTS, []);
-
-    if (db && isTursoConfigured) {
-      try {
-        const rows = await db.select().from(workouts).orderBy(asc(workouts.createdAt));
-        const items = rows.map(mapWorkout);
-        writeLocal(STORAGE_KEYS.WORKOUTS, items);
-        return items;
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao obter treinos da nuvem, usando cache local:', err);
-      }
-    }
-
-    return localList;
+    const client = getDb();
+    const rows = await client.select().from(workouts).orderBy(asc(workouts.createdAt));
+    return rows.map(mapWorkout);
   },
 
   upsert: async (workout: Workout): Promise<Workout> => {
-    const payload: Workout = {
+    const client = getDb();
+    const dbPayload = {
       id: workout.id,
       title: workout.title,
-      description: workout.description || '',
+      description: workout.description || null,
       exercises: workout.exercises || [],
       isDefault: workout.isDefault ?? false,
       createdAt: workout.createdAt || new Date().toISOString(),
       updatedAt: workout.updatedAt || new Date().toISOString(),
     };
 
-    const currentList = readLocal<Workout[]>(STORAGE_KEYS.WORKOUTS, []);
-    const exists = currentList.some(w => w.id === payload.id);
-    const updatedList = exists
-      ? currentList.map(w => (w.id === payload.id ? payload : w))
-      : [...currentList, payload];
-    writeLocal(STORAGE_KEYS.WORKOUTS, updatedList);
+    const [result] = await client
+      .insert(workouts)
+      .values(dbPayload)
+      .onConflictDoUpdate({
+        target: workouts.id,
+        set: {
+          title: dbPayload.title,
+          description: dbPayload.description,
+          exercises: dbPayload.exercises,
+          isDefault: dbPayload.isDefault,
+          updatedAt: dbPayload.updatedAt,
+        },
+      })
+      .returning();
 
-    if (db && isTursoConfigured) {
-      try {
-        const dbPayload = {
-          id: payload.id,
-          title: payload.title,
-          description: payload.description || null,
-          exercises: payload.exercises,
-          isDefault: payload.isDefault ?? false,
-          createdAt: payload.createdAt || new Date().toISOString(),
-          updatedAt: payload.updatedAt || new Date().toISOString(),
-        };
-
-        const [result] = await db
-          .insert(workouts)
-          .values(dbPayload)
-          .onConflictDoUpdate({
-            target: workouts.id,
-            set: {
-              title: dbPayload.title,
-              description: dbPayload.description,
-              exercises: dbPayload.exercises,
-              isDefault: dbPayload.isDefault,
-              updatedAt: dbPayload.updatedAt,
-            },
-          })
-          .returning();
-
-        return mapWorkout(result);
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao sincronizar treino com a nuvem, salvo localmente:', err);
-      }
-    }
-
-    return payload;
+    return mapWorkout(result);
   },
 
   delete: async (id: string): Promise<void> => {
-    const currentList = readLocal<Workout[]>(STORAGE_KEYS.WORKOUTS, []);
-    const filtered = currentList.filter(w => w.id !== id);
-    writeLocal(STORAGE_KEYS.WORKOUTS, filtered);
-
-    if (db && isTursoConfigured) {
-      try {
-        await db.delete(workouts).where(eq(workouts.id, id));
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao excluir treino da nuvem:', err);
-      }
-    }
+    const client = getDb();
+    await client.delete(workouts).where(eq(workouts.id, id));
   },
 };
 
@@ -223,78 +160,42 @@ export const workoutsApi = {
 
 export const historyApi = {
   getAll: async (): Promise<WorkoutSessionLog[]> => {
-    const localHistory = readLocal<WorkoutSessionLog[]>(STORAGE_KEYS.HISTORY, []);
-
-    if (db && isTursoConfigured) {
-      try {
-        const rows = await db.select().from(workoutHistory).orderBy(desc(workoutHistory.date));
-        const items = rows.map(mapHistory);
-        writeLocal(STORAGE_KEYS.HISTORY, items);
-        return items;
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao obter histórico da nuvem, usando cache local:', err);
-      }
-    }
-
-    return localHistory;
+    const client = getDb();
+    const rows = await client.select().from(workoutHistory).orderBy(desc(workoutHistory.date));
+    return rows.map(mapHistory);
   },
 
   insert: async (log: WorkoutSessionLog): Promise<WorkoutSessionLog> => {
-    const localHistory = readLocal<WorkoutSessionLog[]>(STORAGE_KEYS.HISTORY, []);
-    writeLocal(STORAGE_KEYS.HISTORY, [log, ...localHistory]);
+    const client = getDb();
+    const [result] = await client
+      .insert(workoutHistory)
+      .values({
+        id: log.id,
+        workoutId: log.workoutId,
+        workoutTitle: log.workoutTitle,
+        date: log.date,
+        durationSeconds: log.durationSeconds,
+        realDurationSeconds: log.realDurationSeconds ?? null,
+        exercisesCompletedCount: log.exercisesCompletedCount,
+        exercisesSkippedCount: log.exercisesSkippedCount,
+        totalExercisesCount: log.totalExercisesCount,
+        status: log.status,
+        exerciseStatuses: log.exerciseStatuses || {},
+        exerciseLogs: log.exerciseLogs || [],
+      })
+      .returning();
 
-    if (db && isTursoConfigured) {
-      try {
-        const [result] = await db
-          .insert(workoutHistory)
-          .values({
-            id: log.id,
-            workoutId: log.workoutId,
-            workoutTitle: log.workoutTitle,
-            date: log.date,
-            durationSeconds: log.durationSeconds,
-            realDurationSeconds: log.realDurationSeconds ?? null,
-            exercisesCompletedCount: log.exercisesCompletedCount,
-            exercisesSkippedCount: log.exercisesSkippedCount,
-            totalExercisesCount: log.totalExercisesCount,
-            status: log.status,
-            exerciseStatuses: log.exerciseStatuses || {},
-            exerciseLogs: log.exerciseLogs || [],
-          })
-          .returning();
-
-        return mapHistory(result);
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao sincronizar histórico na nuvem, salvo localmente:', err);
-      }
-    }
-
-    return log;
+    return mapHistory(result);
   },
 
   delete: async (id: string): Promise<void> => {
-    const localHistory = readLocal<WorkoutSessionLog[]>(STORAGE_KEYS.HISTORY, []);
-    writeLocal(STORAGE_KEYS.HISTORY, localHistory.filter(h => h.id !== id));
-
-    if (db && isTursoConfigured) {
-      try {
-        await db.delete(workoutHistory).where(eq(workoutHistory.id, id));
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao remover item do histórico na nuvem:', err);
-      }
-    }
+    const client = getDb();
+    await client.delete(workoutHistory).where(eq(workoutHistory.id, id));
   },
 
   deleteAll: async (): Promise<void> => {
-    writeLocal(STORAGE_KEYS.HISTORY, []);
-
-    if (db && isTursoConfigured) {
-      try {
-        await db.delete(workoutHistory);
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao limpar histórico na nuvem:', err);
-      }
-    }
+    const client = getDb();
+    await client.delete(workoutHistory);
   },
 };
 
@@ -302,20 +203,9 @@ export const historyApi = {
 
 export const catalogApi = {
   getAll: async (): Promise<ExerciseCatalogItem[]> => {
-    const localCatalog = readLocal<ExerciseCatalogItem[]>(STORAGE_KEYS.CATALOG, []);
-
-    if (db && isTursoConfigured) {
-      try {
-        const rows = await db.select().from(exerciseCatalog).orderBy(asc(exerciseCatalog.name));
-        const items = rows.map(mapCatalog);
-        writeLocal(STORAGE_KEYS.CATALOG, items);
-        return items;
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao carregar catálogo da nuvem, usando cache local:', err);
-      }
-    }
-
-    return localCatalog;
+    const client = getDb();
+    const rows = await client.select().from(exerciseCatalog).orderBy(asc(exerciseCatalog.name));
+    return rows.map(mapCatalog);
   },
 
   insert: async (item: ExerciseCatalogItem): Promise<ExerciseCatalogItem> => {
@@ -323,59 +213,39 @@ export const catalogApi = {
   },
 
   upsert: async (item: ExerciseCatalogItem): Promise<ExerciseCatalogItem> => {
-    const current = readLocal<ExerciseCatalogItem[]>(STORAGE_KEYS.CATALOG, []);
-    const exists = current.some(c => c.id === item.id);
-    const updated = exists ? current.map(c => (c.id === item.id ? item : c)) : [...current, item];
-    writeLocal(STORAGE_KEYS.CATALOG, updated);
+    const client = getDb();
+    const payload = {
+      id: item.id,
+      name: item.name,
+      executionType: item.executionType,
+      defaultWorkDurationSeconds: item.defaultWorkDurationSeconds,
+      defaultRestDurationSeconds: item.defaultRestDurationSeconds,
+      defaultTargetReps: item.defaultTargetReps ?? null,
+      focusNotes: item.focusNotes || null,
+    };
 
-    if (db && isTursoConfigured) {
-      try {
-        const payload = {
-          id: item.id,
-          name: item.name,
-          executionType: item.executionType,
-          defaultWorkDurationSeconds: item.defaultWorkDurationSeconds,
-          defaultRestDurationSeconds: item.defaultRestDurationSeconds,
-          defaultTargetReps: item.defaultTargetReps ?? null,
-          focusNotes: item.focusNotes || null,
-        };
+    const [result] = await client
+      .insert(exerciseCatalog)
+      .values(payload)
+      .onConflictDoUpdate({
+        target: exerciseCatalog.id,
+        set: {
+          name: payload.name,
+          executionType: payload.executionType,
+          defaultWorkDurationSeconds: payload.defaultWorkDurationSeconds,
+          defaultRestDurationSeconds: payload.defaultRestDurationSeconds,
+          defaultTargetReps: payload.defaultTargetReps,
+          focusNotes: payload.focusNotes,
+        },
+      })
+      .returning();
 
-        const [result] = await db
-          .insert(exerciseCatalog)
-          .values(payload)
-          .onConflictDoUpdate({
-            target: exerciseCatalog.id,
-            set: {
-              name: payload.name,
-              executionType: payload.executionType,
-              defaultWorkDurationSeconds: payload.defaultWorkDurationSeconds,
-              defaultRestDurationSeconds: payload.defaultRestDurationSeconds,
-              defaultTargetReps: payload.defaultTargetReps,
-              focusNotes: payload.focusNotes,
-            },
-          })
-          .returning();
-
-        return mapCatalog(result);
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao sincronizar item do catálogo na nuvem:', err);
-      }
-    }
-
-    return item;
+    return mapCatalog(result);
   },
 
   delete: async (id: string): Promise<void> => {
-    const current = readLocal<ExerciseCatalogItem[]>(STORAGE_KEYS.CATALOG, []);
-    writeLocal(STORAGE_KEYS.CATALOG, current.filter(c => c.id !== id));
-
-    if (db && isTursoConfigured) {
-      try {
-        await db.delete(exerciseCatalog).where(eq(exerciseCatalog.id, id));
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao excluir item do catálogo na nuvem:', err);
-      }
-    }
+    const client = getDb();
+    await client.delete(exerciseCatalog).where(eq(exerciseCatalog.id, id));
   },
 };
 
@@ -383,160 +253,92 @@ export const catalogApi = {
 
 export const runningApi = {
   getAllWorkouts: async (): Promise<RunningWorkout[]> => {
-    const localWorkouts = readLocal<RunningWorkout[]>(STORAGE_KEYS.RUNNING_WORKOUTS, []);
-
-    if (db && isTursoConfigured) {
-      try {
-        const rows = await db.select().from(runningWorkouts).orderBy(asc(runningWorkouts.createdAt));
-        const items = rows.map(mapRunningWorkout);
-        writeLocal(STORAGE_KEYS.RUNNING_WORKOUTS, items);
-        return items;
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao carregar metas de corrida da nuvem, usando cache local:', err);
-      }
-    }
-
-    return localWorkouts;
+    const client = getDb();
+    const rows = await client.select().from(runningWorkouts).orderBy(asc(runningWorkouts.createdAt));
+    return rows.map(mapRunningWorkout);
   },
 
   upsertWorkout: async (workout: RunningWorkout): Promise<RunningWorkout> => {
-    const current = readLocal<RunningWorkout[]>(STORAGE_KEYS.RUNNING_WORKOUTS, []);
-    const exists = current.some(r => r.id === workout.id);
-    const updated = exists ? current.map(r => (r.id === workout.id ? workout : r)) : [...current, workout];
-    writeLocal(STORAGE_KEYS.RUNNING_WORKOUTS, updated);
+    const client = getDb();
+    const payload = {
+      id: workout.id,
+      title: workout.title,
+      targetMode: workout.targetMode,
+      targetDistanceKm: workout.targetDistanceKm ?? null,
+      targetDurationSeconds: workout.targetDurationSeconds ?? null,
+      targetPaceSecPerKm: workout.targetPaceSecPerKm ?? null,
+      lapsCount: workout.lapsCount ?? null,
+      lapDistanceMeters: workout.lapDistanceMeters ?? null,
+      lapTargetSeconds: workout.lapTargetSeconds ?? null,
+      restBetweenLapsSeconds: workout.restBetweenLapsSeconds ?? null,
+      notes: workout.notes || null,
+      isDefault: workout.isDefault ?? false,
+      createdAt: workout.createdAt || new Date().toISOString(),
+    };
 
-    if (db && isTursoConfigured) {
-      try {
-        const payload = {
-          id: workout.id,
-          title: workout.title,
-          targetMode: workout.targetMode,
-          targetDistanceKm: workout.targetDistanceKm ?? null,
-          targetDurationSeconds: workout.targetDurationSeconds ?? null,
-          targetPaceSecPerKm: workout.targetPaceSecPerKm ?? null,
-          lapsCount: workout.lapsCount ?? null,
-          lapDistanceMeters: workout.lapDistanceMeters ?? null,
-          lapTargetSeconds: workout.lapTargetSeconds ?? null,
-          restBetweenLapsSeconds: workout.restBetweenLapsSeconds ?? null,
-          notes: workout.notes || null,
-          isDefault: workout.isDefault ?? false,
-          createdAt: workout.createdAt || new Date().toISOString(),
-        };
+    const [result] = await client
+      .insert(runningWorkouts)
+      .values(payload)
+      .onConflictDoUpdate({
+        target: runningWorkouts.id,
+        set: {
+          title: payload.title,
+          targetMode: payload.targetMode,
+          targetDistanceKm: payload.targetDistanceKm,
+          targetDurationSeconds: payload.targetDurationSeconds,
+          targetPaceSecPerKm: payload.targetPaceSecPerKm,
+          lapsCount: payload.lapsCount,
+          lapDistanceMeters: payload.lapDistanceMeters,
+          lapTargetSeconds: payload.lapTargetSeconds,
+          restBetweenLapsSeconds: payload.restBetweenLapsSeconds,
+          notes: payload.notes,
+          isDefault: payload.isDefault,
+        },
+      })
+      .returning();
 
-        const [result] = await db
-          .insert(runningWorkouts)
-          .values(payload)
-          .onConflictDoUpdate({
-            target: runningWorkouts.id,
-            set: {
-              title: payload.title,
-              targetMode: payload.targetMode,
-              targetDistanceKm: payload.targetDistanceKm,
-              targetDurationSeconds: payload.targetDurationSeconds,
-              targetPaceSecPerKm: payload.targetPaceSecPerKm,
-              lapsCount: payload.lapsCount,
-              lapDistanceMeters: payload.lapDistanceMeters,
-              lapTargetSeconds: payload.lapTargetSeconds,
-              restBetweenLapsSeconds: payload.restBetweenLapsSeconds,
-              notes: payload.notes,
-              isDefault: payload.isDefault,
-            },
-          })
-          .returning();
-
-        return mapRunningWorkout(result);
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao salvar treino de corrida na nuvem:', err);
-      }
-    }
-
-    return workout;
+    return mapRunningWorkout(result);
   },
 
   deleteWorkout: async (id: string): Promise<void> => {
-    const current = readLocal<RunningWorkout[]>(STORAGE_KEYS.RUNNING_WORKOUTS, []);
-    writeLocal(STORAGE_KEYS.RUNNING_WORKOUTS, current.filter(r => r.id !== id));
-
-    if (db && isTursoConfigured) {
-      try {
-        await db.delete(runningWorkouts).where(eq(runningWorkouts.id, id));
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao excluir treino de corrida na nuvem:', err);
-      }
-    }
+    const client = getDb();
+    await client.delete(runningWorkouts).where(eq(runningWorkouts.id, id));
   },
 
   getAllHistory: async (): Promise<RunningLog[]> => {
-    const localLogs = readLocal<RunningLog[]>(STORAGE_KEYS.RUNNING_HISTORY, []);
-
-    if (db && isTursoConfigured) {
-      try {
-        const rows = await db.select().from(runningHistory).orderBy(desc(runningHistory.date));
-        const items = rows.map(mapRunningHistory);
-        writeLocal(STORAGE_KEYS.RUNNING_HISTORY, items);
-        return items;
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao carregar histórico de corrida da nuvem, usando cache local:', err);
-      }
-    }
-
-    return localLogs;
+    const client = getDb();
+    const rows = await client.select().from(runningHistory).orderBy(desc(runningHistory.date));
+    return rows.map(mapRunningHistory);
   },
 
   insertLog: async (log: RunningLog): Promise<RunningLog> => {
-    const current = readLocal<RunningLog[]>(STORAGE_KEYS.RUNNING_HISTORY, []);
-    writeLocal(STORAGE_KEYS.RUNNING_HISTORY, [log, ...current]);
+    const client = getDb();
+    const [result] = await client
+      .insert(runningHistory)
+      .values({
+        id: log.id,
+        workoutId: log.workoutId || null,
+        workoutTitle: log.workoutTitle,
+        date: log.date,
+        distanceKm: log.distanceKm,
+        durationSeconds: log.durationSeconds,
+        paceSecPerKm: log.paceSecPerKm,
+        speedKmH: log.speedKmH,
+        laps: log.laps || null,
+        notes: log.notes || null,
+      })
+      .returning();
 
-    if (db && isTursoConfigured) {
-      try {
-        const [result] = await db
-          .insert(runningHistory)
-          .values({
-            id: log.id,
-            workoutId: log.workoutId || null,
-            workoutTitle: log.workoutTitle,
-            date: log.date,
-            distanceKm: log.distanceKm,
-            durationSeconds: log.durationSeconds,
-            paceSecPerKm: log.paceSecPerKm,
-            speedKmH: log.speedKmH,
-            laps: log.laps || null,
-            notes: log.notes || null,
-          })
-          .returning();
-
-        return mapRunningHistory(result);
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao salvar registro de corrida na nuvem:', err);
-      }
-    }
-
-    return log;
+    return mapRunningHistory(result);
   },
 
   deleteLog: async (id: string): Promise<void> => {
-    const current = readLocal<RunningLog[]>(STORAGE_KEYS.RUNNING_HISTORY, []);
-    writeLocal(STORAGE_KEYS.RUNNING_HISTORY, current.filter(l => l.id !== id));
-
-    if (db && isTursoConfigured) {
-      try {
-        await db.delete(runningHistory).where(eq(runningHistory.id, id));
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao excluir registro de corrida na nuvem:', err);
-      }
-    }
+    const client = getDb();
+    await client.delete(runningHistory).where(eq(runningHistory.id, id));
   },
 
   deleteAllHistory: async (): Promise<void> => {
-    writeLocal(STORAGE_KEYS.RUNNING_HISTORY, []);
-
-    if (db && isTursoConfigured) {
-      try {
-        await db.delete(runningHistory);
-      } catch (err) {
-        console.warn('[Turso API Warning] Falha ao limpar histórico de corrida na nuvem:', err);
-      }
-    }
+    const client = getDb();
+    await client.delete(runningHistory);
   },
 };
-

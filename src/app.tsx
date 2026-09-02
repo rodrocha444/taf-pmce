@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { BottomNav, Header } from './components/organisms';
+import { AlertTriangle } from 'lucide-react';
+import { isTursoConfigured } from './db';
 import {
   WorkoutsView,
   ExercisesView,
@@ -37,6 +39,21 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             : 'main-content-viewport overflow-y-auto overflow-x-hidden px-safe'
         }`}
       >
+        {!isTursoConfigured && (
+          <div className="max-w-4xl mx-auto px-4 pt-2 pb-1">
+            <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-3 shadow-lg shadow-rose-950/40">
+              <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/30">
+                <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="font-bold text-white">Banco de Dados Não Configurado</p>
+                <p className="text-zinc-300">
+                  Defina <code className="bg-zinc-900 px-1 py-0.5 rounded text-rose-300 font-mono">VITE_TURSO_DATABASE_URL</code> e <code className="bg-zinc-900 px-1 py-0.5 rounded text-rose-300 font-mono">VITE_TURSO_AUTH_TOKEN</code> no <code className="bg-zinc-900 px-1 py-0.5 rounded text-amber-300 font-mono">.env</code> para persistir seus dados.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         {children}
       </main>
       <BottomNav />

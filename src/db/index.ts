@@ -18,7 +18,9 @@ export const isTursoConfigured = Boolean(
 );
 
 if (!isTursoConfigured) {
-  console.info('[TAF PMCE DB] Modo Local (Offline/LocalStorage) ativado.');
+  console.error(
+    '[TAF PMCE DB] ERRO: Banco de dados Turso não configurado. Defina VITE_TURSO_DATABASE_URL e VITE_TURSO_AUTH_TOKEN.'
+  );
 }
 
 export const tursoClient = isTursoConfigured
@@ -30,4 +32,3 @@ export const tursoClient = isTursoConfigured
 
 export const db = tursoClient ? drizzle(tursoClient, { schema }) : null;
 export * from './schema';
-

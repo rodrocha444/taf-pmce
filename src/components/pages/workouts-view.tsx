@@ -290,6 +290,7 @@ export const WorkoutsView: React.FC = () => {
         description={`Tem certeza que deseja apagar o treino "${deleteWorkoutTarget?.title}"? Esta ação removerá a série permanentemente.`}
         confirmLabel="Sim, Excluir"
         variant="danger"
+        countdownSeconds={5}
         isLoading={deleteWorkout.isPending}
         onConfirm={async () => {
           if (deleteWorkoutTarget) {

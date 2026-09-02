@@ -30,16 +30,27 @@ const client = createClient({
 
 async function main() {
   console.log('Conectando ao Turso em:', url);
-  const sql = fs.readFileSync(path.resolve(process.cwd(), 'turso-schema.sql'), 'utf8');
+  const rawSql = fs.readFileSync(path.resolve(process.cwd(), 'turso-schema.sql'), 'utf8');
 
-  // Quebra os comandos por ponto e vírgula
-  const statements = sql
+  // Remove linhas de comentário e divide por ponto e vírgula
+  const cleanedSql = rawSql
+    .split('\n')
+    .map(line => {
+      const idx = line.indexOf('--');
+      return idx >= 0 ? line.slice(0, idx) : line;
+    })
+    .join('\n');
+
+  const statements = cleanedSql
     .split(';')
     .map(s => s.trim())
-    .filter(s => s.length > 0 && !s.startsWith('--'));
+    .filter(s => s.length > 0);
 
-  for (const statement of statements) {
-    console.log('Executando statement:', statement.substring(0, 40) + '...');
+  console.log(`Encontrados ${statements.length} comandos SQL para executar.`);
+
+  for (let i = 0; i < statements.length; i++) {
+    const statement = statements[i];
+    console.log(`Executando [${i + 1}/${statements.length}]:`, statement.substring(0, 50).replace(/\s+/g, ' ') + '...');
     await client.execute(statement);
   }
 

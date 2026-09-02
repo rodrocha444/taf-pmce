@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Volume2, Mic, Sun, Play, FastForward,
-  Download, Upload, Database
+  Download, Upload, Database, AlertTriangle
 } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
 import { useQueryClient } from '@tanstack/react-query';
+import { isTursoConfigured } from '../../db';
 import { audioEngine } from '../../utils/audio';
 import { speechEngine } from '../../utils/speech';
-import { ConfirmModal } from '../molecules';
 import { useWorkouts, useHistory, useExerciseCatalog, useRunningWorkouts, useRunningHistory, WORKOUTS_KEY, HISTORY_KEY, CATALOG_KEY, RUNNING_WORKOUTS_KEY, RUNNING_HISTORY_KEY } from '../../hooks';
 
 export const SettingsView: React.FC = () => {
-  const navigate = useNavigate();
   const qc = useQueryClient();
 
   const settings = useWorkoutStore(state => state.settings);
@@ -23,19 +21,6 @@ export const SettingsView: React.FC = () => {
   const { data: exerciseCatalog = [] } = useExerciseCatalog();
   const { data: runningWorkouts = [] } = useRunningWorkouts();
   const { data: runningHistory = [] } = useRunningHistory();
-
-  const [showResetModal, setShowResetModal] = useState(false);
-
-  const handleConfirmReset = () => {
-    // Limpa o cache local — na próxima query, buscará do Turso vazio
-    qc.setQueryData(WORKOUTS_KEY, []);
-    qc.setQueryData(HISTORY_KEY, []);
-    qc.setQueryData(CATALOG_KEY, []);
-    qc.setQueryData(RUNNING_WORKOUTS_KEY, []);
-    qc.setQueryData(RUNNING_HISTORY_KEY, []);
-    setShowResetModal(false);
-    navigate('/');
-  };
 
   const testBeep = () => {
     audioEngine.playGoBeep();
@@ -294,35 +279,37 @@ export const SettingsView: React.FC = () => {
           )}
         </div>
 
-        {/* Turso Database Info & Reset */}
-        <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/30 rounded-2xl p-4 space-y-3">
+        {/* Turso Database Info */}
+        <div className={`bg-gradient-to-r ${isTursoConfigured ? 'from-emerald-500/10' : 'from-rose-500/10'} via-zinc-900 to-zinc-900 border ${isTursoConfigured ? 'border-emerald-500/30' : 'border-rose-500/40'} rounded-2xl p-4 space-y-3`}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs border border-amber-500/30">
+              <div className={`w-10 h-10 rounded-xl ${isTursoConfigured ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/30'} flex items-center justify-center font-bold text-xs border shrink-0`}>
                 <Database className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <span>Banco de Dados em Nuvem (Turso LibSQL + Drizzle ORM)</span>
+                  <span>Banco de Dados Turso (LibSQL + Drizzle ORM)</span>
                 </h3>
                 <p className="text-xs text-zinc-400">
-                  Todos os dados são persistidos e sincronizados com Turso SQLite via Drizzle ORM.
+                  {isTursoConfigured
+                    ? 'Conexão ativa. Todos os treinos, catálogo e histórico são gravados diretamente no banco de dados na nuvem.'
+                    : 'Nenhuma conexão configurada. O app requer credenciais válidas do Turso para funcionar.'}
                 </p>
               </div>
             </div>
-            <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold font-mono shrink-0">
-              ATIVO
+            <span className={`px-2.5 py-1 rounded-lg ${isTursoConfigured ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/40'} text-[10px] font-bold font-mono shrink-0`}>
+              {isTursoConfigured ? 'CONECTADO' : 'NÃO CONFIGURADO'}
             </span>
           </div>
 
-          <div className="pt-2 border-t border-zinc-800/80 flex justify-end">
-            <button
-              onClick={() => setShowResetModal(true)}
-              className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-bold transition-all cursor-pointer"
-            >
-              Limpar Cache Local
-            </button>
-          </div>
+          {!isTursoConfigured && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>
+                Defina <code className="bg-zinc-950 px-1 py-0.5 rounded text-rose-200">VITE_TURSO_DATABASE_URL</code> e <code className="bg-zinc-950 px-1 py-0.5 rounded text-rose-200">VITE_TURSO_AUTH_TOKEN</code> no arquivo <code>.env</code>.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* PWA Info */}
@@ -342,17 +329,6 @@ export const SettingsView: React.FC = () => {
         </div>
 
       </div>
-
-      {/* Confirm Reset Cache Modal */}
-      <ConfirmModal
-        isOpen={showResetModal}
-        title="Limpar Cache Local?"
-        description="Isso irá remover os dados em memória. Na próxima vez que abrir cada tela, os dados serão recarregados do Turso."
-        confirmLabel="Limpar Cache"
-        variant="danger"
-        onConfirm={handleConfirmReset}
-        onCancel={() => setShowResetModal(false)}
-      />
     </div>
   );
 };
