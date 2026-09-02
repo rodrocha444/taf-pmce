@@ -1,6 +1,54 @@
-# React + TypeScript + Vite
+# TAF PMCE - Auxiliar de Treino
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplicativo PWA para cronometragem e auxílio de treino TAF PMCE (30 Minutos) com suporte a offline, Supabase e TanStack Query.
+
+---
+
+## 🚀 Executando em Desenvolvimento
+
+### Opção 1: Via Docker (Recomendado)
+
+1. **Configurar variáveis de ambiente:**
+   ```bash
+   cp .env.example .env
+   ```
+   *(Preencha as variáveis do Supabase no `.env` caso necessário)*
+
+2. **Subir os containers:**
+   ```bash
+   npm run docker:dev
+   # ou diretamente:
+   docker compose up --build
+   ```
+
+3. **Acessar a aplicação:**
+   Abra no navegador em [http://localhost:5555](http://localhost:5555).
+
+4. **Encerrar os containers:**
+   ```bash
+   npm run docker:down
+   # ou
+   docker compose down
+   ```
+
+---
+
+### Opção 2: Localmente via Node / NPM
+
+1. **Instalar dependências:**
+   ```bash
+   npm install
+   ```
+
+2. **Executar em modo dev:**
+   ```bash
+   npm run dev
+   ```
+
+3. **Acessar a aplicação:**
+   Abra em [http://localhost:5555](http://localhost:5555).
+
+---
 
 Currently, two official plugins are available:
 
