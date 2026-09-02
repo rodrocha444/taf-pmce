@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { catalogApi } from '../services/supabase-api';
+import { catalogApi } from '../services/turso-api';
 import type { ExerciseCatalogItem } from '../types';
 
 export const CATALOG_KEY = ['exercise_catalog'] as const;

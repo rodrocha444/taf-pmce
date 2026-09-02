@@ -11,11 +11,12 @@ import {
 import { useWorkoutStore } from '../../store/workout-store';
 import { useHistory, useDeleteHistoryLog, useAddHistoryLog, useWorkouts } from '../../hooks';
 import { formatDate, formatTimeHoursMins, formatSecondsToMMSS } from '../../utils/formatters';
-import { ConfirmModal } from '../molecules';
+import { ConfirmModal, LoadingState } from '../molecules';
+import { Button } from '../atoms';
 import type { ExerciseEvolutionLog, WorkoutSessionLog } from '../../types';
 
 export const HistoryView: React.FC = () => {
-  const { data: history = [] } = useHistory();
+  const { data: history = [], isLoading: isLoadingHistory } = useHistory();
   const { data: workouts = [] } = useWorkouts();
   const deleteHistoryLog = useDeleteHistoryLog();
   const addHistoryLog = useAddHistoryLog();
@@ -171,7 +172,13 @@ export const HistoryView: React.FC = () => {
           </h2>
         </div>
 
-        {history.length === 0 ? (
+        {isLoadingHistory ? (
+          <LoadingState
+            message="Carregando histórico..."
+            description="Buscando sessões de treinos gravadas no Turso..."
+            cardCount={3}
+          />
+        ) : history.length === 0 ? (
           <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl p-8 text-center space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
               <Award className="w-6 h-6" />
@@ -433,19 +440,26 @@ export const HistoryView: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="zinc"
+                size="md"
+                fullWidth
                 onClick={handleCloseManualModal}
-                className="w-1/2 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700"
+                disabled={addHistoryLog.isPending}
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="w-1/2 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs hover:bg-amber-400 shadow-lg shadow-amber-500/20 font-black"
+                variant="amber"
+                size="md"
+                fullWidth
+                isLoading={addHistoryLog.isPending}
+                loadingText="Salvando Treino..."
               >
                 Salvar Treino
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -458,6 +472,7 @@ export const HistoryView: React.FC = () => {
         description="Tem certeza que deseja excluir esta sessão do histórico?"
         confirmLabel="Excluir"
         variant="danger"
+        isLoading={deleteHistoryLog.isPending}
         onConfirm={handleConfirmSingleDelete}
         onCancel={() => setDeleteTargetId(null)}
       />

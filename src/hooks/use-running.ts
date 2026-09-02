@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { runningApi } from '../services/supabase-api';
+import { runningApi } from '../services/turso-api';
 import { calculatePaceSecPerKm, calculateSpeedKmH } from '../utils/formatters';
 import type { RunningWorkout, RunningLog } from '../types';
 

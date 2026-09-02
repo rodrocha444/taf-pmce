@@ -3,3 +3,4 @@ export * from './empty-state';
 export * from './form-field';
 export * from './stat-box';
 export * from './progress-ring';
+export * from './loading-state';

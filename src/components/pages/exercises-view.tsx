@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { Plus, BookOpen, RefreshCw, AlertCircle } from 'lucide-react';
+import { Plus, BookOpen, AlertCircle } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
 import { useExerciseCatalog, useAddCatalogExercise, useSaveCatalogExercise, useDeleteCatalogExercise, useHistory } from '../../hooks';
 import type { ExerciseCatalogItem, ExerciseExecutionType } from '../../types';
-import { ConfirmModal } from '../molecules';
+import { ConfirmModal, LoadingState } from '../molecules';
 import { Button, Input, Select, ModalBase } from '../atoms';
 import { EmptyState, FormField } from '../molecules';
 import { ExerciseCatalogCard } from '../organisms';
 import { formatDate } from '../../utils/formatters';
 
 export const ExercisesView: React.FC = () => {
-  const { data: exerciseCatalog = [] } = useExerciseCatalog();
+  const { data: exerciseCatalog = [], isLoading: isLoadingCatalog } = useExerciseCatalog();
   const { data: history = [] } = useHistory();
   const addCatalogExercise = useAddCatalogExercise();
   const saveCatalogExercise = useSaveCatalogExercise();
@@ -89,7 +89,7 @@ export const ExercisesView: React.FC = () => {
       handleCloseModal();
     } catch (err: any) {
       console.error('[ExercisesView] Error saving exercise:', err);
-      setErrorMessage(err?.message || 'Erro ao salvar exercício no Supabase.');
+      setErrorMessage(err?.message || 'Erro ao salvar exercício no Turso.');
     }
   };
 
@@ -128,7 +128,13 @@ export const ExercisesView: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
-      {exerciseCatalog.length === 0 ? (
+      {isLoadingCatalog ? (
+        <LoadingState
+          message="Carregando biblioteca..."
+          description="Sincronizando catálogo de exercícios com o Turso..."
+          cardCount={4}
+        />
+      ) : exerciseCatalog.length === 0 ? (
         <EmptyState
           icon={<BookOpen className="w-10 h-10 text-amber-400" />}
           title="Biblioteca Vazia"
@@ -228,10 +234,10 @@ export const ExercisesView: React.FC = () => {
               variant="amber"
               size="md"
               fullWidth
-              disabled={isSaving}
-              icon={isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : undefined}
+              isLoading={isSaving}
+              loadingText="Salvando..."
             >
-              {isSaving ? 'Salvando...' : 'Salvar no Catálogo'}
+              Salvar no Catálogo
             </Button>
           </div>
         </form>
@@ -244,6 +250,7 @@ export const ExercisesView: React.FC = () => {
         description={`Tem certeza que deseja excluir "${deleteTargetItem?.name}" da biblioteca?`}
         confirmLabel="Excluir"
         variant="danger"
+        isLoading={deleteCatalogExercise.isPending}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTargetItem(null)}
       />

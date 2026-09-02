@@ -10,6 +10,7 @@ export interface ConfirmModalProps {
   cancelLabel?: string;
   variant?: 'danger' | 'warning' | 'emerald' | 'amber';
   countdownSeconds?: number;
+  isLoading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -22,6 +23,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   cancelLabel = 'Cancelar',
   variant = 'danger',
   countdownSeconds,
+  isLoading = false,
   onConfirm,
   onCancel
 }) => {
@@ -117,6 +119,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             size="md"
             fullWidth
             disabled={countdown > 0}
+            isLoading={isLoading}
             onClick={onConfirm}
           >
             {countdown > 0 ? `${confirmLabel} (${countdown}s)` : confirmLabel}

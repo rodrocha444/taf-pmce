@@ -27,7 +27,7 @@ export const SettingsView: React.FC = () => {
   const [showResetModal, setShowResetModal] = useState(false);
 
   const handleConfirmReset = () => {
-    // Limpa o cache local — na próxima query, buscará do Supabase vazio
+    // Limpa o cache local — na próxima query, buscará do Turso vazio
     qc.setQueryData(WORKOUTS_KEY, []);
     qc.setQueryData(HISTORY_KEY, []);
     qc.setQueryData(CATALOG_KEY, []);
@@ -76,13 +76,13 @@ export const SettingsView: React.FC = () => {
         setImportMessage('Arquivo inválido ou incompatível.');
         return;
       }
-      // Hydrate cache — as próximas mutations persistirão no Supabase
+      // Hydrate cache — as próximas mutations persistirão no Turso
       if (data.workouts) qc.setQueryData(WORKOUTS_KEY, data.workouts);
       if (data.history) qc.setQueryData(HISTORY_KEY, data.history);
       if (data.exerciseCatalog) qc.setQueryData(CATALOG_KEY, data.exerciseCatalog);
       if (data.runningWorkouts) qc.setQueryData(RUNNING_WORKOUTS_KEY, data.runningWorkouts);
       if (data.runningHistory) qc.setQueryData(RUNNING_HISTORY_KEY, data.runningHistory);
-      setImportMessage('Backup importado com sucesso! Os dados estão no cache — edite qualquer item para persistir no Supabase.');
+      setImportMessage('Backup importado com sucesso! Os dados estão no cache — edite qualquer item para persistir no Turso.');
     } catch {
       setImportMessage('Erro ao ler arquivo de backup.');
     }
@@ -294,7 +294,7 @@ export const SettingsView: React.FC = () => {
           )}
         </div>
 
-        {/* Supabase Database Info & Reset */}
+        {/* Turso Database Info & Reset */}
         <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border border-amber-500/30 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -303,10 +303,10 @@ export const SettingsView: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <span>Banco de Dados em Nuvem (Supabase)</span>
+                  <span>Banco de Dados em Nuvem (Turso LibSQL + Drizzle ORM)</span>
                 </h3>
                 <p className="text-xs text-zinc-400">
-                  Todos os dados são sincronizados em tempo real com o Supabase PostgreSQL.
+                  Todos os dados são persistidos e sincronizados com Turso SQLite via Drizzle ORM.
                 </p>
               </div>
             </div>
@@ -336,7 +336,7 @@ export const SettingsView: React.FC = () => {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             </h3>
             <p className="text-xs text-zinc-400">
-              O cronômetro, áudios e interface funcionam sem internet. Dados são sincronizados com Supabase quando online.
+              O cronômetro, áudios e interface funcionam sem internet. Dados são sincronizados com Turso quando online.
             </p>
           </div>
         </div>
@@ -347,7 +347,7 @@ export const SettingsView: React.FC = () => {
       <ConfirmModal
         isOpen={showResetModal}
         title="Limpar Cache Local?"
-        description="Isso irá remover os dados em memória. Na próxima vez que abrir cada tela, os dados serão recarregados do Supabase."
+        description="Isso irá remover os dados em memória. Na próxima vez que abrir cada tela, os dados serão recarregados do Turso."
         confirmLabel="Limpar Cache"
         variant="danger"
         onConfirm={handleConfirmReset}

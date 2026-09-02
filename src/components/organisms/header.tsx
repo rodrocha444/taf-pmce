@@ -44,21 +44,27 @@ export const Header: React.FC = () => {
               
               {/* Cloud Sync Status Indicator based on TanStack Query status */}
               <span
-                className={`p-1 rounded-md border flex items-center justify-center transition-all ${
+                className={`px-1.5 py-0.5 rounded-md border flex items-center gap-1 transition-all text-[10px] font-mono font-bold ${
                   isSyncing
                     ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse'
                     : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
                 }`}
                 title={
                   isSyncing
-                    ? 'Sincronizando com Supabase...'
-                    : 'Conectado à nuvem (Supabase)'
+                    ? 'Sincronizando com Turso...'
+                    : 'Conectado à nuvem (Turso)'
                 }
               >
                 {isSyncing ? (
-                  <RefreshCw className="w-3 h-3 animate-spin text-amber-400" />
+                  <>
+                    <RefreshCw className="w-3 h-3 animate-spin text-amber-400" />
+                    <span className="hidden sm:inline">Salvando...</span>
+                  </>
                 ) : (
-                  <Cloud className="w-3 h-3 text-cyan-400" />
+                  <>
+                    <Cloud className="w-3 h-3 text-cyan-400" />
+                    <span className="hidden sm:inline">Turso</span>
+                  </>
                 )}
               </span>
             </div>

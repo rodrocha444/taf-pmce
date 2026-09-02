@@ -21,6 +21,8 @@ import {
 } from '../../hooks';
 import type { RunningWorkout, RunningTargetMode, RunningLapDetail, RunningLog } from '../../types';
 import { formatPace, formatSecondsToMMSS, formatDate, calculatePaceSecPerKm, calculateSpeedKmH } from '../../utils/formatters';
+import { Button } from '../atoms';
+import { LoadingState } from '../molecules';
 
 interface ManualLapItem {
   mins: string;
@@ -29,8 +31,8 @@ interface ManualLapItem {
 }
 
 export const RunningView: React.FC = () => {
-  const { data: runningWorkouts = [] } = useRunningWorkouts();
-  const { data: runningHistory = [] } = useRunningHistory();
+  const { data: runningWorkouts = [], isLoading: isLoadingWorkouts } = useRunningWorkouts();
+  const { data: runningHistory = [], isLoading: isLoadingHistory } = useRunningHistory();
   const saveRunningWorkout = useSaveRunningWorkout();
   const deleteRunningWorkoutMutation = useDeleteRunningWorkout();
   const addRunningLogMutation = useAddRunningLog();
@@ -504,7 +506,11 @@ export const RunningView: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {runningWorkouts.map(w => {
+              {isLoadingWorkouts ? (
+                <div className="col-span-full">
+                  <LoadingState message="Carregando metas de corrida..." description="Buscando planos de corrida no Turso..." cardCount={2} />
+                </div>
+              ) : runningWorkouts.map(w => {
                 const paceSecs = w.targetPaceSecPerKm || (w.targetDurationSeconds && w.targetDistanceKm ? Math.round(w.targetDurationSeconds / w.targetDistanceKm) : 0);
                 const wLogs = runningHistory.filter(h => h.workoutId === w.id || h.workoutTitle === w.title);
                 const execCount = wLogs.length;
@@ -673,7 +679,9 @@ export const RunningView: React.FC = () => {
               </div>
             </div>
 
-            {runningHistory.length === 0 ? (
+            {isLoadingHistory ? (
+              <LoadingState message="Carregando histórico de corridas..." description="Buscando corridas gravadas no Turso..." cardCount={3} />
+            ) : runningHistory.length === 0 ? (
               <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl p-8 text-center space-y-3">
                 <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
                   <Award className="w-6 h-6" />
@@ -1142,22 +1150,29 @@ export const RunningView: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="zinc"
+                size="md"
+                fullWidth
                 onClick={() => {
                   setShowCreateModal(false);
                   setEditingWorkout(null);
                 }}
-                className="w-1/2 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700"
+                disabled={saveRunningWorkout.isPending}
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="w-1/2 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs hover:bg-amber-400 shadow-lg shadow-amber-500/20"
+                variant="amber"
+                size="md"
+                fullWidth
+                isLoading={saveRunningWorkout.isPending}
+                loadingText={editingWorkout ? 'Salvando...' : 'Criando Meta...'}
               >
                 {editingWorkout ? 'Salvar Alterações' : 'Salvar Meta'}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -1381,19 +1396,26 @@ export const RunningView: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2 pt-2">
-              <button
+              <Button
                 type="button"
+                variant="zinc"
+                size="md"
+                fullWidth
                 onClick={() => setShowLogModal(false)}
-                className="w-1/2 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs hover:bg-zinc-700"
+                disabled={addRunningLogMutation.isPending}
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="w-1/2 py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs hover:bg-amber-400 shadow-lg shadow-amber-500/20"
+                variant="amber"
+                size="md"
+                fullWidth
+                isLoading={addRunningLogMutation.isPending}
+                loadingText="Salvando..."
               >
                 Salvar no Histórico
-              </button>
+              </Button>
             </div>
           </form>
         </div>

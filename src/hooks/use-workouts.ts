@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { workoutsApi } from '../services/supabase-api';
+import { workoutsApi } from '../services/turso-api';
 import type { Workout } from '../types';
 
 export const WORKOUTS_KEY = ['workouts'] as const;

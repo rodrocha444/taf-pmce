@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { historyApi } from '../services/supabase-api';
+import { historyApi } from '../services/turso-api';
 import type { WorkoutSessionLog } from '../types';
 
 export const HISTORY_KEY = ['history'] as const;

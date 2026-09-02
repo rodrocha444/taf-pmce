@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 
 export type ButtonVariant = 'amber' | 'zinc' | 'rose' | 'purple' | 'emerald' | 'ghost';
 export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
@@ -8,6 +9,8 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   size?: ButtonSize;
   fullWidth?: boolean;
   icon?: React.ReactNode;
+  isLoading?: boolean;
+  loadingText?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -16,6 +19,8 @@ export const Button: React.FC<ButtonProps> = ({
   size = 'md',
   fullWidth = false,
   icon,
+  isLoading = false,
+  loadingText,
   className = '',
   disabled,
   ...props
@@ -36,16 +41,22 @@ export const Button: React.FC<ButtonProps> = ({
     lg: 'px-5 py-3 text-sm rounded-2xl gap-2'
   };
 
+  const isDisabled = disabled || isLoading;
+
   return (
     <button
-      disabled={disabled}
+      disabled={isDisabled}
       className={`inline-flex items-center justify-center transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-40 disabled:pointer-events-none disabled:active:scale-100 ${
         variantStyles[variant]
       } ${sizeStyles[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
       {...props}
     >
-      {icon && <span className="shrink-0">{icon}</span>}
-      {children && <span>{children}</span>}
+      {isLoading ? (
+        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+      ) : (
+        icon && <span className="shrink-0">{icon}</span>
+      )}
+      <span>{isLoading && loadingText ? loadingText : children}</span>
     </button>
   );
 };

@@ -1,32 +1,45 @@
-# React + TypeScript + Vite
+# TAF PMCE — Preparatório Físico
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplicativo moderno e offline-first para preparação e controle de treinos para o TAF (Teste de Aptidão Física) da PMCE.
 
-Currently, two official plugins are available:
+## 🚀 Tecnologias
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** + **TypeScript** + **Vite**
+- **Tailwind CSS v4**
+- **Turso Database (LibSQL / SQLite distribuído)**
+- **Drizzle ORM** (Type-safe query builder e migrations)
+- **TanStack Query (React Query v5)** (Gerenciamento de cache, mutações e sincronização)
+- **Zustand** (Estado local de cronômetro e sessão ativa)
+- **Lucide React** (Ícones)
+- **Vite PWA** (Suporte a Progressive Web App offline)
 
-## React Compiler
+## ⚙️ Configuração do Banco de Dados (Turso)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+1. Crie um banco de dados no [Turso](https://turso.tech/):
+   ```bash
+   turso db create taf-pmce
+   turso db tokens create taf-pmce
+   turso db show taf-pmce --url
+   ```
 
-## Expanding the Oxlint configuration
+2. Crie um arquivo `.env` na raiz do projeto com as credenciais:
+   ```env
+   VITE_TURSO_DATABASE_URL=libsql://taf-pmce-seu-usuario.turso.io
+   VITE_TURSO_AUTH_TOKEN=seu-token-aqui
+   ```
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+3. Execute o schema inicial no seu banco Turso:
+   ```bash
+   turso db shell taf-pmce < turso-schema.sql
+   ```
+   *Ou utilize o Drizzle Kit:*
+   ```bash
+   npx drizzle-kit push
+   ```
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+## 🛠️ Scripts Disponíveis
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+- `npm run dev`: Inicia o servidor de desenvolvimento na porta 5555.
+- `npm run build`: Valida os tipos TypeScript e gera o build de produção (`dist`).
+- `npm run lint`: Executa o linter com Oxlint.
+- `npm run preview`: Visualiza o build de produção localmente.

@@ -876,10 +876,18 @@ export const EditView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-800/80">
-            <Button type="button" variant="zinc" size="md" fullWidth onClick={closeModal}>
+            <Button type="button" variant="zinc" size="md" fullWidth onClick={closeModal} disabled={saveWorkout.isPending}>
               Cancelar
             </Button>
-            <Button type="submit" variant="amber" size="md" fullWidth icon={<Save className="w-4 h-4" />}>
+            <Button
+              type="submit"
+              variant="amber"
+              size="md"
+              fullWidth
+              isLoading={saveWorkout.isPending}
+              loadingText="Salvando..."
+              icon={<Save className="w-4 h-4" />}
+            >
               {isAdding && setsCount > 1 ? `Salvar ${setsCount} Séries` : 'Salvar'}
             </Button>
           </div>
@@ -893,6 +901,7 @@ export const EditView: React.FC = () => {
         description={`Tem certeza que deseja remover "${deleteExerciseTarget?.name}" da sua série de treino?`}
         confirmLabel="Sim, Remover"
         variant="danger"
+        isLoading={saveWorkout.isPending}
         onConfirm={() => {
           if (deleteExerciseTarget) {
             deleteExerciseFromWorkout(workout.id, deleteExerciseTarget.id);
@@ -909,6 +918,7 @@ export const EditView: React.FC = () => {
         description={`Tem certeza que deseja remover todas as ${deleteGroupTarget?.items.length} séries de "${deleteGroupTarget?.groupName}" do seu treino?`}
         confirmLabel="Sim, Excluir Grupo"
         variant="danger"
+        isLoading={saveWorkout.isPending}
         onConfirm={confirmDeleteGroup}
         onCancel={() => setDeleteGroupTarget(null)}
       />

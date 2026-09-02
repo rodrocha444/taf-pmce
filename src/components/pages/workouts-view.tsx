@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Plus, Edit, RefreshCw, AlertCircle } from 'lucide-react';
+import { Dumbbell, Plus, Edit, AlertCircle } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
 import { useWorkouts, useSaveWorkout, useDeleteWorkout } from '../../hooks';
 import { useHistory } from '../../hooks';
-import { ConfirmModal } from '../molecules';
+import { ConfirmModal, LoadingState } from '../molecules';
 import { Button, Input, ModalBase } from '../atoms';
 import { EmptyState, FormField } from '../molecules';
 import { WorkoutCard } from '../organisms';
@@ -14,7 +14,7 @@ export const WorkoutsView: React.FC = () => {
   const navigate = useNavigate();
 
   // Server state
-  const { data: workouts = [] } = useWorkouts();
+  const { data: workouts = [], isLoading: isLoadingWorkouts } = useWorkouts();
   const { data: history = [] } = useHistory();
   const saveWorkout = useSaveWorkout();
   const deleteWorkout = useDeleteWorkout();
@@ -77,7 +77,7 @@ export const WorkoutsView: React.FC = () => {
       navigate('/edit');
     } catch (err: any) {
       console.error('[WorkoutsView] Error creating workout:', err);
-      setErrorMessage(err?.message || 'Erro ao conectar ao Supabase. Verifique sua conexão.');
+      setErrorMessage(err?.message || 'Erro ao conectar ao Turso. Verifique sua conexão.');
     }
   };
 
@@ -103,7 +103,7 @@ export const WorkoutsView: React.FC = () => {
       setEditingDetailsWorkout(null);
     } catch (err: any) {
       console.error('[WorkoutsView] Error updating workout details:', err);
-      setErrorMessage(err?.message || 'Erro ao salvar alterações no Supabase.');
+      setErrorMessage(err?.message || 'Erro ao salvar alterações no Turso.');
     }
   };
 
@@ -120,7 +120,13 @@ export const WorkoutsView: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
-      {workouts.length === 0 ? (
+      {isLoadingWorkouts ? (
+        <LoadingState
+          message="Carregando treinos..."
+          description="Sincronizando com o banco Turso..."
+          cardCount={2}
+        />
+      ) : workouts.length === 0 ? (
         <EmptyState
           icon={<Dumbbell className="w-10 h-10 text-amber-400" />}
           title="Nenhum Treino Cadastrado"
@@ -206,10 +212,11 @@ export const WorkoutsView: React.FC = () => {
               variant="amber"
               size="md"
               fullWidth
-              disabled={saveWorkout.isPending}
-              icon={saveWorkout.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 stroke-[3]" />}
+              isLoading={saveWorkout.isPending}
+              loadingText="Criando Treino..."
+              icon={<Plus className="w-4 h-4 stroke-[3]" />}
             >
-              {saveWorkout.isPending ? 'Criando Treino...' : 'Criar Treino'}
+              Criar Treino
             </Button>
           </div>
         </form>
@@ -267,10 +274,10 @@ export const WorkoutsView: React.FC = () => {
               variant="amber"
               size="md"
               fullWidth
-              disabled={saveWorkout.isPending}
-              icon={saveWorkout.isPending ? <RefreshCw className="w-4 h-4 animate-spin" /> : undefined}
+              isLoading={saveWorkout.isPending}
+              loadingText="Salvando..."
             >
-              {saveWorkout.isPending ? 'Salvando...' : 'Salvar'}
+              Salvar
             </Button>
           </div>
         </form>
@@ -283,9 +290,10 @@ export const WorkoutsView: React.FC = () => {
         description={`Tem certeza que deseja apagar o treino "${deleteWorkoutTarget?.title}"? Esta ação removerá a série permanentemente.`}
         confirmLabel="Sim, Excluir"
         variant="danger"
-        onConfirm={() => {
+        isLoading={deleteWorkout.isPending}
+        onConfirm={async () => {
           if (deleteWorkoutTarget) {
-            deleteWorkout.mutate(deleteWorkoutTarget.id);
+            await deleteWorkout.mutateAsync(deleteWorkoutTarget.id);
             setDeleteWorkoutTarget(null);
           }
         }}
