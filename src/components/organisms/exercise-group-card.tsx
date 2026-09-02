@@ -37,7 +37,7 @@ export const ExerciseGroupCard: React.FC<ExerciseGroupCardProps> = ({
   onEditSet,
   onDeleteSet,
 }) => {
-  const [isExpanded, setIsExpanded] = useState<boolean>(true);
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   const totalSets = items.length;
   const totalDurationSeconds = items.reduce((acc, item) => acc + item.exercise.durationSeconds, 0);
@@ -61,9 +61,6 @@ export const ExerciseGroupCard: React.FC<ExerciseGroupCardProps> = ({
               <h3 className="text-base font-bold text-white font-['Outfit']">
                 {groupName}
               </h3>
-              <Badge variant="purple" icon={<Layers className="w-3 h-3 text-purple-400" />}>
-                {totalSets} {totalSets === 1 ? 'Série' : 'Séries Agrupadas'}
-              </Badge>
               <Badge variant="zinc">
                 Início {firstStartTime} • Total {formatSecondsToMMSS(totalDurationSeconds)}
               </Badge>
@@ -86,7 +83,7 @@ export const ExerciseGroupCard: React.FC<ExerciseGroupCardProps> = ({
             onClick={onAddSetToGroup}
             title="Adicionar mais uma série a este grupo"
           >
-            + Série
+            Série
           </Button>
 
           <Button
@@ -142,7 +139,7 @@ export const ExerciseGroupCard: React.FC<ExerciseGroupCardProps> = ({
                   <div className="flex items-center gap-1.5">
                     {isItemReps ? (
                       <Badge variant="purple" icon={<Target className="w-3 h-3 text-purple-400" />}>
-                        {ex.targetReps} reps
+                        {ex.targetReps ? `${ex.targetReps} reps` : 'Repetições'}
                       </Badge>
                     ) : (
                       <Badge variant="amber" icon={<Play className="w-3 h-3 fill-current text-amber-400" />}>
@@ -212,10 +209,10 @@ export const ExerciseGroupCard: React.FC<ExerciseGroupCardProps> = ({
           type="button"
           variant="rose"
           size="xs"
+          icon={<Trash2 className="w-3.5 h-3.5" />}
           onClick={onDeleteGroup}
         >
-          <Trash2 className="w-3.5 h-3.5" />
-          <span>Excluir Grupo Inteiro ({totalSets}x)</span>
+          Excluir
         </Button>
       </div>
     </Card>

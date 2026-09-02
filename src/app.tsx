@@ -14,7 +14,8 @@ import {
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  const isHeaderHidden = location.pathname === '/player' || location.pathname === '/edit';
+  const isPlayer = location.pathname === '/player';
+  const isEdit = location.pathname === '/edit';
   const mainRef = React.useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -28,10 +29,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <Header />
       <main
         ref={mainRef}
-        className={`absolute left-0 right-0 overflow-y-auto overflow-x-hidden px-safe ${
-          isHeaderHidden
-            ? 'top-0 bottom-0 player-safe-container'
-            : 'main-content-viewport'
+        className={`absolute left-0 right-0 ${
+          isPlayer
+            ? 'top-0 bottom-0 h-full overflow-hidden'
+            : isEdit
+            ? 'top-0 bottom-0 overflow-y-auto overflow-x-hidden player-safe-container'
+            : 'main-content-viewport overflow-y-auto overflow-x-hidden px-safe'
         }`}
       >
         {children}

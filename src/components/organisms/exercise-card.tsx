@@ -84,7 +84,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
         <div className="flex flex-wrap items-center gap-2 self-end sm:self-center shrink-0">
           {isRepsMode ? (
             <Badge variant="purple" icon={<Target className="w-3.5 h-3.5 text-purple-400" />} title="Modo: Por Repetição">
-              {exercise.targetReps} reps
+              {exercise.targetReps ? `${exercise.targetReps} reps` : 'Repetições'}
             </Badge>
           ) : (
             <Badge variant="amber" icon={<Play className="w-3.5 h-3.5 fill-current text-amber-400" />} title="Modo: Por Tempo de Execução">

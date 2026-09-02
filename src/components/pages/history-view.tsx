@@ -43,7 +43,7 @@ export const HistoryView: React.FC = () => {
       selectedWorkout.exercises.forEach(ex => {
         initialMap[ex.id] = {
           completed: true,
-          reps: String(ex.targetReps || 10),
+          reps: ex.targetReps ? String(ex.targetReps) : '',
           timeSecs: String(ex.workDurationSeconds || 60)
         };
       });
@@ -71,7 +71,7 @@ export const HistoryView: React.FC = () => {
     targetW.exercises.forEach(ex => {
       initialMap[ex.id] = {
         completed: true,
-        reps: ex.targetReps ? String(ex.targetReps) : '10',
+        reps: ex.targetReps ? String(ex.targetReps) : '',
         timeSecs: String(ex.workDurationSeconds || 60)
       };
     });
@@ -95,7 +95,7 @@ export const HistoryView: React.FC = () => {
     const exerciseStatusesRecord: Record<number, 'completed' | 'skipped'> = {};
 
     const exerciseLogs: ExerciseEvolutionLog[] = selectedWorkout.exercises.map((ex, idx) => {
-      const state = exerciseStatusMap[ex.id] || { completed: true, reps: String(ex.targetReps || 10), timeSecs: String(ex.workDurationSeconds || 60) };
+      const state = exerciseStatusMap[ex.id] || { completed: true, reps: ex.targetReps ? String(ex.targetReps) : '', timeSecs: String(ex.workDurationSeconds || 60) };
       const status: 'completed' | 'skipped' = state.completed ? 'completed' : 'skipped';
 
       exerciseStatusesRecord[idx] = status;
@@ -111,7 +111,7 @@ export const HistoryView: React.FC = () => {
         exerciseName: ex.name,
         executionType: isReps ? 'reps' : 'time',
         targetReps: ex.targetReps,
-        completedReps: state.completed && isReps ? (parseInt(state.reps) || ex.targetReps || 10) : 0,
+        completedReps: state.completed && isReps ? (parseInt(state.reps) || ex.targetReps || 0) : 0,
         workDurationSeconds: ex.workDurationSeconds || 60,
         realWorkSeconds: state.completed ? (parseInt(state.timeSecs) || ex.workDurationSeconds || 60) : 0,
         status,
@@ -391,7 +391,7 @@ export const HistoryView: React.FC = () => {
                         <div>
                           <span className="font-bold text-white block truncate">{ex.name}</span>
                           <span className="text-[10px] text-zinc-400 font-mono">
-                            {isReps ? `Meta: ${ex.targetReps || 10} reps` : `Tempo: ${ex.workDurationSeconds}s`}
+                            {isReps ? (ex.targetReps ? `Meta: ${ex.targetReps} reps` : 'Por Repetições') : `Tempo: ${ex.workDurationSeconds}s`}
                           </span>
                         </div>
                       </div>

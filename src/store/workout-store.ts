@@ -14,8 +14,6 @@ import { audioEngine } from '../utils/audio';
 import { speechEngine } from '../utils/speech';
 import { wakeLockManager } from '../utils/wake-lock';
 
-export { DEFAULT_RUNNING_WORKOUTS } from './running-defaults';
-
 export const formatExerciseVoiceLabel = (ex?: Exercise): { label: string; repsInfo: string } => {
   if (!ex) return { label: '', repsInfo: '' };
   const setInfo = ex.setNumber && ex.totalSets ? `, Série ${ex.setNumber} de ${ex.totalSets}` : '';
@@ -176,10 +174,13 @@ export const useWorkoutStore = create<WorkoutStore>()(
         if (!session || session.isPaused) return;
 
         const { settings } = get();
+        const now = Date.now();
+        const lastUpdated = session.lastUpdatedTimestamp || now;
+        const deltaSeconds = Math.max(1, Math.floor((now - lastUpdated) / 1000));
 
         // Preparation phase countdown
         if (session.isPreparing) {
-          const nextPrepRemaining = session.prepTimeRemaining - 1;
+          const nextPrepRemaining = session.prepTimeRemaining - deltaSeconds;
 
           if (nextPrepRemaining > 0) {
             if (settings.soundBeepEnabled && nextPrepRemaining <= 3) {
@@ -189,7 +190,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
               activeSession: {
                 ...session,
                 prepTimeRemaining: nextPrepRemaining,
-                lastUpdatedTimestamp: Date.now()
+                lastUpdatedTimestamp: now
               }
             });
           } else {
@@ -198,15 +199,21 @@ export const useWorkoutStore = create<WorkoutStore>()(
             const { label, repsInfo } = formatExerciseVoiceLabel(currentEx);
             speechEngine.speak(`Valendo! Execução: ${label}${repsInfo}`, settings.ttsVoiceEnabled, settings.volume);
 
+            const excessAfterPrep = Math.abs(nextPrepRemaining);
+            const isReps = currentEx.executionType === 'reps' || (currentEx.targetReps !== undefined && currentEx.targetReps > 0);
+            const initialWork = currentEx.workDurationSeconds || 60;
+            const remainingWork = isReps ? initialWork : Math.max(0, initialWork - excessAfterPrep);
+
             set({
               activeSession: {
                 ...session,
                 isPreparing: false,
                 prepTimeRemaining: 0,
                 currentPhase: 'work',
-                phaseTimeRemaining: currentEx.workDurationSeconds || 60,
-                exerciseTimeRemaining: currentEx.durationSeconds,
-                lastUpdatedTimestamp: Date.now()
+                phaseTimeRemaining: remainingWork,
+                exerciseTimeRemaining: Math.max(0, currentEx.durationSeconds - excessAfterPrep),
+                totalTimeElapsed: session.totalTimeElapsed + deltaSeconds,
+                lastUpdatedTimestamp: now
               }
             });
           }
@@ -221,27 +228,27 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
         const isRepsExercise = currentExercise.executionType === 'reps' || (currentExercise.targetReps !== undefined && currentExercise.targetReps > 0);
 
-        // Reps exercises do NOT have an execution countdown timer
+        // Reps exercises do NOT have an execution countdown timer during work phase
         if (session.currentPhase === 'work' && isRepsExercise) {
           set({
             activeSession: {
               ...session,
-              totalTimeElapsed: session.totalTimeElapsed + 1,
-              lastUpdatedTimestamp: Date.now()
+              totalTimeElapsed: session.totalTimeElapsed + deltaSeconds,
+              lastUpdatedTimestamp: now
             }
           });
           return;
         }
 
-        const nextPhaseTime = session.phaseTimeRemaining - 1;
-        const nextExerciseTime = session.exerciseTimeRemaining - 1;
-        const nextTotalElapsed = session.totalTimeElapsed + 1;
+        const nextPhaseTime = session.phaseTimeRemaining - deltaSeconds;
+        const nextExerciseTime = Math.max(0, session.exerciseTimeRemaining - deltaSeconds);
+        const nextTotalElapsed = session.totalTimeElapsed + deltaSeconds;
 
-        if (settings.soundBeepEnabled && nextPhaseTime <= 3 && nextPhaseTime > 0) {
+        if (deltaSeconds === 1 && settings.soundBeepEnabled && nextPhaseTime <= 3 && nextPhaseTime > 0) {
           audioEngine.playCountdownTick();
         }
 
-        if (session.currentPhase === 'rest' && settings.ttsVoiceEnabled && nextPhaseTime === 10) {
+        if (session.currentPhase === 'rest' && settings.ttsVoiceEnabled && nextPhaseTime <= 10 && session.phaseTimeRemaining > 10) {
           const nextExIndex = session.currentExerciseIndex + 1;
           if (nextExIndex < workout.exercises.length) {
             const nextEx = workout.exercises[nextExIndex];
@@ -257,7 +264,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
               phaseTimeRemaining: nextPhaseTime,
               exerciseTimeRemaining: nextExerciseTime,
               totalTimeElapsed: nextTotalElapsed,
-              lastUpdatedTimestamp: Date.now()
+              lastUpdatedTimestamp: now
             }
           });
         } else {
@@ -269,6 +276,8 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
             if (settings.soundBeepEnabled) audioEngine.playGoBeep();
             const restTime = currentExercise.restDurationSeconds || 60;
+            const excessTime = Math.abs(nextPhaseTime);
+            const remainingRest = Math.max(0, restTime - excessTime);
             const nextExItem = workout.exercises[session.currentExerciseIndex + 1];
 
             if (settings.ttsVoiceEnabled) {
@@ -285,13 +294,14 @@ export const useWorkoutStore = create<WorkoutStore>()(
                 ...session,
                 exerciseStatuses: newStatuses,
                 currentPhase: 'rest',
-                phaseTimeRemaining: restTime,
-                exerciseTimeRemaining: nextExerciseTime,
+                phaseTimeRemaining: remainingRest,
+                exerciseTimeRemaining: remainingRest,
                 totalTimeElapsed: nextTotalElapsed,
-                lastUpdatedTimestamp: Date.now()
+                lastUpdatedTimestamp: now
               }
             });
           } else {
+            // Rest phase completed (even while minimized on iPhone)
             const nextIndex = session.currentExerciseIndex + 1;
 
             if (nextIndex < workout.exercises.length) {
@@ -304,7 +314,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
               if (shouldPause) {
                 if (settings.ttsVoiceEnabled) {
                   const { label: nextLabel } = formatExerciseVoiceLabel(nextEx);
-                  speechEngine.speak(`Bloco concluído! Pausado. Toque em Continuar quando estiver pronto para: ${nextLabel}`, true, settings.volume);
+                  speechEngine.speak(`Descanso concluído! Pausado. Toque em Continuar para: ${nextLabel}`, true, settings.volume);
                 }
               } else {
                 if (settings.ttsVoiceEnabled) {
@@ -324,7 +334,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
                   exerciseTimeRemaining: nextEx.durationSeconds,
                   totalTimeElapsed: nextTotalElapsed,
                   isPaused: shouldPause,
-                  lastUpdatedTimestamp: Date.now()
+                  lastUpdatedTimestamp: now
                 }
               });
             } else {
@@ -532,7 +542,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
               exerciseName: ex.name,
               executionType: isReps ? 'reps' : 'time',
               targetReps: ex.targetReps,
-              completedReps: isCompleted && isReps ? (ex.targetReps || 10) : 0,
+              completedReps: isCompleted && isReps ? (ex.targetReps || 0) : 0,
               workDurationSeconds: ex.workDurationSeconds || 60,
               realWorkSeconds: isCompleted ? (ex.workDurationSeconds || 60) : 0,
               status: exStatus,

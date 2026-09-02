@@ -8,8 +8,8 @@
   - `src/components/organisms/`: Blocos compostos (`Header`, `BottomNav`, `WorkoutCard`, `ExerciseCard`, `ExerciseCatalogCard`).
   - `src/components/pages/`: Telas da aplicação.
 - **Estrutura & Barrels**: PROIBIDO criar arquivos soltos em `src/components/`. Mantenha os `index.ts` de cada camada sempre atualizados e use imports da camada (ex: `import { Button } from '../components/atoms'`).
-- **Reutilização**: Sempre priorize reutilizar e compor componentes existentes antes de criar novos estilos ou elementos ad-hoc.
+- **Comunicação Concisa**: As respostas da IA devem ser sempre diretas, objetivas e concisas, evitando explicações desnecessárias ou prolixas.
 
 ## 2. Stack & Padrões
-- **Tech**: React 19, TypeScript, Tailwind CSS v4, Zustand, Dexie (IndexedDB), Lucide React.
+- **Tech**: React 19, TypeScript, Tailwind CSS v4, Zustand, Turso LibSQL / Local-First, Lucide React.
 - **Qualidade**: Utilize `npm run lint` (`oxlint`) e `npm run build` (`tsc -b && vite build`) para validar o código quando necessário.

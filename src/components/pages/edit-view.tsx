@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Save, ArrowLeft, Play, Coffee, Target, Layers, Copy } from 'lucide-react';
+import { Plus, Save, ArrowLeft, Play, Target, Copy } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
 import { useWorkouts, useSaveWorkout, useExerciseCatalog } from '../../hooks';
 import type { Exercise, Workout } from '../../types';
 import { getExerciseStartTime, formatSecondsToMMSS } from '../../utils/formatters';
 import { ConfirmModal } from '../molecules';
-import { Button, Input, Select, ModalBase } from '../atoms';
+import { Button, Input, Select, Badge } from '../atoms';
 import { EmptyState, FormField } from '../molecules';
 import { ExerciseCard, ExerciseGroupCard, type GroupedExerciseItem } from '../organisms';
 
@@ -292,10 +292,10 @@ export const EditView: React.FC = () => {
   // Single set fallback / Series state
   const [setsCount, setSetsCount] = useState<number>(1);
   const [seriesList, setSeriesList] = useState<SetConfig[]>([
-    { reps: 10, workMinutes: 1, workSeconds: 0, restMinutes: 1, restSeconds: 0 }
+    { reps: '', workMinutes: 1, workSeconds: 0, restMinutes: 1, restSeconds: 0 }
   ]);
 
-  const [formTargetReps, setFormTargetReps] = useState<number | ''>(10);
+  const [formTargetReps, setFormTargetReps] = useState<number | ''>('');
   const [workMinutes, setWorkMinutes] = useState<number>(1);
   const [workSeconds, setWorkSeconds] = useState<number>(0);
   const [restMinutes, setRestMinutes] = useState<number>(1);
@@ -306,7 +306,7 @@ export const EditView: React.FC = () => {
     setSetsCount(validCount);
 
     setSeriesList(prev => {
-      const baseReps = prev[0]?.reps ?? (typeof formTargetReps === 'number' ? formTargetReps : 10);
+      const baseReps = prev[0]?.reps ?? (typeof formTargetReps === 'number' ? formTargetReps : '');
       const baseWorkMin = prev[0]?.workMinutes ?? workMinutes;
       const baseWorkSec = prev[0]?.workSeconds ?? workSeconds;
       const baseRestMin = prev[0]?.restMinutes ?? restMinutes;
@@ -348,13 +348,18 @@ export const EditView: React.FC = () => {
 
   const handleSelectCatalogItem = (catId: string) => {
     setSelectedCatalogId(catId);
+    if (!catId) {
+      setFormName('');
+      setFormNotes('');
+      return;
+    }
     const catItem = exerciseCatalog.find(c => c.id === catId);
     if (catItem) {
       setFormName(catItem.name);
       setFormNotes(catItem.focusNotes || '');
       setFormExecutionType(catItem.executionType);
       const isReps = catItem.executionType === 'reps';
-      const targetRepsVal = isReps ? (catItem.defaultTargetReps || 10) : 10;
+      const targetRepsVal = isReps ? (catItem.defaultTargetReps ?? '') : '';
       setFormTargetReps(targetRepsVal);
 
       const workSecs = catItem.defaultWorkDurationSeconds || 60;
@@ -389,20 +394,17 @@ export const EditView: React.FC = () => {
     setFormName('');
     setFormNotes('');
     setFormExecutionType('reps');
-    setFormTargetReps(10);
+    setFormTargetReps('');
     setWorkMinutes(1);
     setWorkSeconds(0);
     setRestMinutes(1);
     setRestSeconds(0);
     setSetsCount(1);
     setSeriesList([
-      { reps: 10, workMinutes: 1, workSeconds: 0, restMinutes: 1, restSeconds: 0 }
+      { reps: '', workMinutes: 1, workSeconds: 0, restMinutes: 1, restSeconds: 0 }
     ]);
     setIsAdding(true);
-
-    if (exerciseCatalog.length > 0) {
-      handleSelectCatalogItem(exerciseCatalog[0].id);
-    }
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const openEditModal = (exercise: Exercise) => {
@@ -415,18 +417,26 @@ export const EditView: React.FC = () => {
 
     const isReps = exercise.executionType === 'reps' || (exercise.targetReps !== undefined && exercise.targetReps > 0);
     setFormExecutionType(isReps ? 'reps' : 'time');
-    setFormTargetReps(exercise.targetReps ?? 10);
+    setFormTargetReps(exercise.targetReps ?? '');
 
     const workTotal = exercise.workDurationSeconds || 60;
-    setWorkMinutes(Math.floor(workTotal / 60));
-    setWorkSeconds(workTotal % 60);
-
+    const workMin = Math.floor(workTotal / 60);
+    const workSec = workTotal % 60;
     const restTotal = exercise.restDurationSeconds || 60;
-    setRestMinutes(Math.floor(restTotal / 60));
-    setRestSeconds(restTotal % 60);
+    const restMin = Math.floor(restTotal / 60);
+    const restSec = restTotal % 60;
+
+    setWorkMinutes(workMin);
+    setWorkSeconds(workSec);
+    setRestMinutes(restMin);
+    setRestSeconds(restSec);
 
     setSetsCount(1);
+    setSeriesList([
+      { reps: exercise.targetReps ?? '', workMinutes: workMin, workSeconds: workSec, restMinutes: restMin, restSeconds: restSec }
+    ]);
     setIsAdding(false);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const closeModal = () => {
@@ -436,7 +446,11 @@ export const EditView: React.FC = () => {
 
   const handleSaveModal = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim()) return;
+    if (!selectedCatalogId) return;
+
+    const catItem = exerciseCatalog.find(c => c.id === selectedCatalogId);
+    const exerciseName = formName.trim() || catItem?.name;
+    if (!exerciseName) return;
 
     const isReps = formExecutionType === 'reps';
 
@@ -457,10 +471,10 @@ export const EditView: React.FC = () => {
         addExerciseSetsToWorkout(
           workout.id,
           {
-            name: formName.trim(),
-            focusNotes: formNotes.trim(),
+            name: exerciseName,
+            focusNotes: formNotes.trim() || catItem?.focusNotes || '',
             executionType: formExecutionType,
-            catalogId: selectedCatalogId || undefined
+            catalogId: selectedCatalogId
           },
           setsData
         );
@@ -471,13 +485,13 @@ export const EditView: React.FC = () => {
         const repsVal = isReps && typeof formTargetReps === 'number' ? Math.max(1, formTargetReps) : undefined;
 
         addExerciseToWorkout(workout.id, {
-          name: formName.trim(),
-          focusNotes: formNotes.trim(),
+          name: exerciseName,
+          focusNotes: formNotes.trim() || catItem?.focusNotes || '',
           executionType: formExecutionType,
           targetReps: repsVal,
           workDurationSeconds: totalWorkSecs,
           restDurationSeconds: totalRestSecs,
-          catalogId: selectedCatalogId || undefined
+          catalogId: selectedCatalogId
         });
       }
     } else if (editingExercise) {
@@ -487,19 +501,350 @@ export const EditView: React.FC = () => {
 
       updateExerciseInWorkout(workout.id, {
         ...editingExercise,
-        name: formName.trim(),
-        focusNotes: formNotes.trim(),
+        name: exerciseName,
+        focusNotes: formNotes.trim() || catItem?.focusNotes || '',
         executionType: formExecutionType,
         targetReps: repsVal,
         workDurationSeconds: totalWorkSecs,
         restDurationSeconds: totalRestSecs,
         durationSeconds: totalWorkSecs + totalRestSecs,
-        catalogId: selectedCatalogId || editingExercise.catalogId
+        catalogId: selectedCatalogId
       });
     }
 
     closeModal();
   };
+
+  // Tela de Criação / Edição de Exercício como Página Dedicada
+  if (isAdding || editingExercise !== null) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-4 space-y-6">
+        {/* Top Header: Voltar | Título da tela | Salvar */}
+        <div className="flex items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
+          <Button
+            type="button"
+            variant="zinc"
+            size="md"
+            icon={<ArrowLeft className="w-4 h-4" />}
+            onClick={closeModal}
+          >
+            Voltar
+          </Button>
+
+          <div className="text-center px-2 min-w-0">
+            <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400 block font-mono">
+              {isAdding ? 'Novo Exercício' : 'Editando Exercício'}
+            </span>
+            <h2 className="text-base sm:text-lg font-bold text-white font-['Outfit'] truncate">
+              {isAdding
+                ? workout.title
+                : editingExercise?.setNumber && editingExercise?.totalSets
+                ? `${editingExercise.name} (Série ${editingExercise.setNumber}/${editingExercise.totalSets})`
+                : editingExercise?.name || workout.title}
+            </h2>
+          </div>
+
+          <Button
+            type="submit"
+            form="exercise-form"
+            variant="amber"
+            size="md"
+            icon={<Save className="w-4 h-4" />}
+            isLoading={saveWorkout.isPending}
+            loadingText="Salvando..."
+            disabled={!selectedCatalogId}
+          >
+            {isAdding && setsCount > 1 ? `Salvar (${setsCount})` : 'Salvar'}
+          </Button>
+        </div>
+
+        <form id="exercise-form" onSubmit={handleSaveModal} className="space-y-6">
+          {/* Seção 1: Seleção do Exercício da Biblioteca */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 font-mono flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-zinc-800 text-amber-400 flex items-center justify-center text-[10px]">1</span>
+              <span>Exercício da Biblioteca</span>
+            </h3>
+
+            <FormField label="Selecione o Exercício *">
+              <Select
+                required
+                value={selectedCatalogId}
+                onChange={e => handleSelectCatalogItem(e.target.value)}
+              >
+                <option value="" disabled>-- Selecione um Exercício da Biblioteca --</option>
+                {exerciseCatalog.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+
+            {selectedCatalogId && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-400 font-medium">Modo de Execução:</span>
+                <Badge
+                  variant={formExecutionType === 'reps' ? 'purple' : 'amber'}
+                  icon={formExecutionType === 'reps' ? <Target className="w-3.5 h-3.5 text-purple-400" /> : <Play className="w-3.5 h-3.5 fill-current text-amber-400" />}
+                >
+                  {formExecutionType === 'reps' ? 'Por Repetições' : 'Por Tempo (Isometria)'}
+                </Badge>
+              </div>
+            )}
+
+            <FormField label="Foco / Observação (Opcional)">
+              <Input
+                type="text"
+                value={formNotes}
+                onChange={e => setFormNotes(e.target.value)}
+                placeholder="Ex: Foco TAF - Cotovelos alinhados e tronco firme"
+              />
+            </FormField>
+          </div>
+
+          <div className="border-t border-zinc-800/80" />
+
+          {/* Seção 2: Séries e Descanso */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 font-mono flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-zinc-800 text-amber-400 flex items-center justify-center text-[10px]">2</span>
+                <span>Séries & Tempos</span>
+              </h3>
+
+              {isAdding && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-400">Total de séries:</span>
+                  <div className="flex items-center gap-1.5 bg-zinc-900 px-2 py-1 rounded-xl border border-zinc-800">
+                    <button
+                      type="button"
+                      onClick={() => handleSetsCountChange(setsCount - 1)}
+                      disabled={setsCount <= 1}
+                      className="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 text-white font-bold text-sm flex items-center justify-center cursor-pointer transition-colors"
+                    >
+                      -
+                    </button>
+                    <span className="w-7 text-center text-xs font-bold text-amber-400 font-mono">
+                      {setsCount}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleSetsCountChange(setsCount + 1)}
+                      disabled={setsCount >= 10}
+                      className="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 text-white font-bold text-sm flex items-center justify-center cursor-pointer transition-colors"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Single Set Form (Editing or 1 Set Mode) */}
+            {(!isAdding || setsCount === 1) && (
+              <div className="space-y-4">
+                {formExecutionType === 'reps' ? (
+                  <FormField label="Meta de Repetições (Opcional)">
+                    <Input
+                      type="number"
+                      min="1"
+                      value={formTargetReps}
+                      onChange={e => setFormTargetReps(e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                      placeholder="Ex: 30 (opcional)"
+                      accentColor="purple"
+                      className="font-bold text-sm"
+                    />
+                  </FormField>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField label="Tempo Execução (Minutos)">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="60"
+                        required
+                        value={workMinutes}
+                        onChange={e => setWorkMinutes(parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                      />
+                    </FormField>
+                    <FormField label="Tempo Execução (Segundos)">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="59"
+                        required
+                        value={workSeconds}
+                        onChange={e => setWorkSeconds(parseInt(e.target.value) || 0)}
+                        placeholder="30"
+                      />
+                    </FormField>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField label="Descanso (Minutos)">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="60"
+                      required
+                      value={restMinutes}
+                      onChange={e => setRestMinutes(parseInt(e.target.value) || 0)}
+                      placeholder="1"
+                      accentColor="cyan"
+                    />
+                  </FormField>
+                  <FormField label="Descanso (Segundos)">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="59"
+                      required
+                      value={restSeconds}
+                      onChange={e => setRestSeconds(parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                      accentColor="cyan"
+                    />
+                  </FormField>
+                </div>
+              </div>
+            )}
+
+            {/* Multi-Series Independent Configuration Cards */}
+            {isAdding && setsCount > 1 && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between text-xs text-zinc-400 bg-zinc-900/60 px-3 py-2 rounded-xl border border-zinc-800/80">
+                  <span>Configure cada série individualmente:</span>
+                  <button
+                    type="button"
+                    onClick={replicateFirstSetToAll}
+                    className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                    title="Copiar repetições e tempos da Série 1 para todas as outras"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copiar Série 1 p/ todas</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {seriesList.slice(0, setsCount).map((setCfg, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-3"
+                    >
+                      <div className="flex items-center justify-between border-b border-zinc-800/60 pb-2">
+                        <span className="text-xs font-bold text-amber-400 uppercase font-mono tracking-wider">
+                          SÉRIE {idx + 1} de {setsCount}
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-mono">
+                          Duração: {formatSecondsToMMSS(
+                            (formExecutionType === 'reps' ? 60 : (setCfg.workMinutes * 60 + setCfg.workSeconds)) +
+                            (setCfg.restMinutes * 60 + setCfg.restSeconds)
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {formExecutionType === 'reps' ? (
+                          <FormField label="Meta de Repetições (Opcional)">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={setCfg.reps}
+                              onChange={e => updateSeriesItem(idx, { reps: e.target.value === '' ? '' : parseInt(e.target.value) || '' })}
+                              placeholder="Ex: 30 (opcional)"
+                              accentColor="purple"
+                              className="font-bold text-xs"
+                            />
+                          </FormField>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-2">
+                            <FormField label="Tempo (Min)">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="60"
+                                value={setCfg.workMinutes}
+                                onChange={e => updateSeriesItem(idx, { workMinutes: parseInt(e.target.value) || 0 })}
+                                placeholder="Min"
+                              />
+                            </FormField>
+                            <FormField label="Tempo (Seg)">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="59"
+                                value={setCfg.workSeconds}
+                                onChange={e => updateSeriesItem(idx, { workSeconds: parseInt(e.target.value) || 0 })}
+                                placeholder="Seg"
+                              />
+                            </FormField>
+                          </div>
+                        )}
+
+                        {/* Descanso da Série */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <FormField label="Descanso (Min)">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="60"
+                              value={setCfg.restMinutes}
+                              onChange={e => updateSeriesItem(idx, { restMinutes: parseInt(e.target.value) || 0 })}
+                              placeholder="Min"
+                              accentColor="cyan"
+                            />
+                          </FormField>
+                          <FormField label="Descanso (Seg)">
+                            <Input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={setCfg.restSeconds}
+                              onChange={e => updateSeriesItem(idx, { restSeconds: parseInt(e.target.value) || 0 })}
+                              placeholder="Seg"
+                              accentColor="cyan"
+                            />
+                          </FormField>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Actions */}
+          <div className="flex items-center gap-3 pt-2">
+            <Button
+              type="button"
+              variant="zinc"
+              size="lg"
+              fullWidth
+              onClick={closeModal}
+              disabled={saveWorkout.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="amber"
+              size="lg"
+              fullWidth
+              isLoading={saveWorkout.isPending}
+              loadingText="Salvando..."
+              icon={<Save className="w-4 h-4" />}
+            >
+              {isAdding && setsCount > 1 ? `Salvar ${setsCount} Séries` : 'Salvar Exercício'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
@@ -584,315 +929,6 @@ export const EditView: React.FC = () => {
           })
         )}
       </div>
-
-      {/* Form Modal (Add / Edit Exercise) */}
-      <ModalBase isOpen={isAdding || editingExercise !== null} onClose={closeModal} maxWidth="md">
-        <form onSubmit={handleSaveModal} className="space-y-4">
-          <h3 className="text-lg font-bold text-white font-['Outfit'] flex items-center justify-between">
-            <span>
-              {isAdding
-                ? 'Adicionar Exercício'
-                : editingExercise?.setNumber && editingExercise?.totalSets
-                ? `Editar Exercício (Série ${editingExercise.setNumber} de ${editingExercise.totalSets})`
-                : 'Editar Exercício'}
-            </span>
-          </h3>
-
-          <div className="space-y-4">
-            {/* Escolha da Biblioteca Oficial */}
-            <FormField label="Exercício da Biblioteca (Preenchimento Rápido)">
-              <Select
-                value={selectedCatalogId}
-                onChange={e => handleSelectCatalogItem(e.target.value)}
-              >
-                <option value="">-- Exercício Livre / Personalizado --</option>
-                {exerciseCatalog.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.executionType === 'reps' ? `${c.defaultTargetReps || 10} reps` : `${c.defaultWorkDurationSeconds}s`})
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-
-            <FormField label="Foco / Observação (Ex: Cotovelos para trás)">
-              <Input
-                type="text"
-                value={formNotes}
-                onChange={e => setFormNotes(e.target.value)}
-                placeholder="Ex: Foco TAF - Manter tronco firme"
-              />
-            </FormField>
-
-            {/* Seletor de Tipo de Execução: Repetição vs Tempo */}
-            <div>
-              <label className="block text-zinc-300 font-bold mb-1.5">Modo do Exercício</label>
-              <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-zinc-950 border border-zinc-800">
-                <Button
-                  type="button"
-                  variant={formExecutionType === 'reps' ? 'purple' : 'ghost'}
-                  size="sm"
-                  icon={<Target className="w-4 h-4" />}
-                  onClick={() => setFormExecutionType('reps')}
-                  fullWidth
-                >
-                  Por Repetição
-                </Button>
-
-                <Button
-                  type="button"
-                  variant={formExecutionType === 'time' ? 'amber' : 'ghost'}
-                  size="sm"
-                  icon={<Play className="w-4 h-4 fill-current" />}
-                  onClick={() => setFormExecutionType('time')}
-                  fullWidth
-                >
-                  Por Tempo
-                </Button>
-              </div>
-            </div>
-
-            {/* Configuração de Séries (Ao Adicionar Novo Exercício) */}
-            {isAdding && (
-              <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800/90 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-amber-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">
-                      Quantidade de Séries
-                    </span>
-                  </div>
-
-                  {/* Contador de Séries */}
-                  <div className="flex items-center gap-1.5 bg-zinc-900 px-2 py-1 rounded-xl border border-zinc-800">
-                    <button
-                      type="button"
-                      onClick={() => handleSetsCountChange(setsCount - 1)}
-                      disabled={setsCount <= 1}
-                      className="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 text-white font-bold text-sm flex items-center justify-center cursor-pointer transition-colors"
-                    >
-                      -
-                    </button>
-                    <span className="w-8 text-center text-xs font-bold text-amber-400 font-mono">
-                      {setsCount} {setsCount === 1 ? 'série' : 'séries'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleSetsCountChange(setsCount + 1)}
-                      disabled={setsCount >= 10}
-                      className="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 text-white font-bold text-sm flex items-center justify-center cursor-pointer transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                {setsCount > 1 && (
-                  <div className="flex items-center justify-between text-[11px] text-zinc-400 border-t border-zinc-800/60 pt-2">
-                    <span>Configure cada série de forma independente:</span>
-                    <button
-                      type="button"
-                      onClick={replicateFirstSetToAll}
-                      className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                      title="Copiar repetições e tempos da Série 1 para todas as outras"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copiar Série 1 p/ todas</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Single Set Form (Editing or 1 Set Mode) */}
-            {(!isAdding || setsCount === 1) && (
-              <div className="space-y-4">
-                {formExecutionType === 'reps' ? (
-                  <FormField label="Meta de Repetições">
-                    <Input
-                      type="number"
-                      min="1"
-                      required
-                      value={formTargetReps}
-                      onChange={e => setFormTargetReps(e.target.value === '' ? '' : parseInt(e.target.value) || 1)}
-                      placeholder="Ex: 30"
-                      accentColor="purple"
-                      className="font-bold text-sm"
-                    />
-                  </FormField>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField label="Tempo Execução (Minutos)">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="60"
-                        required
-                        value={workMinutes}
-                        onChange={e => setWorkMinutes(parseInt(e.target.value) || 0)}
-                        placeholder="0"
-                      />
-                    </FormField>
-                    <FormField label="Tempo Execução (Segundos)">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="59"
-                        required
-                        value={workSeconds}
-                        onChange={e => setWorkSeconds(parseInt(e.target.value) || 0)}
-                        placeholder="30"
-                      />
-                    </FormField>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField label="Descanso (Minutos)">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="60"
-                      required
-                      value={restMinutes}
-                      onChange={e => setRestMinutes(parseInt(e.target.value) || 0)}
-                      placeholder="1"
-                      accentColor="cyan"
-                    />
-                  </FormField>
-                  <FormField label="Descanso (Segundos)">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="59"
-                      required
-                      value={restSeconds}
-                      onChange={e => setRestSeconds(parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                      accentColor="cyan"
-                    />
-                  </FormField>
-                </div>
-              </div>
-            )}
-
-            {/* Multi-Series Independent Configuration Cards */}
-            {isAdding && setsCount > 1 && (
-              <div className="space-y-2.5 max-h-[42vh] overflow-y-auto pr-1">
-                <div className="grid grid-cols-1 gap-2.5">
-                  {seriesList.slice(0, setsCount).map((setCfg, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-2xl bg-zinc-950/90 border border-zinc-800 space-y-2.5 shadow-inner"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-amber-400 uppercase font-mono tracking-wider">
-                          SÉRIE {idx + 1} de {setsCount}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 font-mono">
-                          Duração: {formatSecondsToMMSS(
-                            (formExecutionType === 'reps' ? 60 : (setCfg.workMinutes * 60 + setCfg.workSeconds)) +
-                            (setCfg.restMinutes * 60 + setCfg.restSeconds)
-                          )}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {formExecutionType === 'reps' ? (
-                          <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 space-y-1">
-                            <label className="block text-[11px] text-purple-300 font-bold flex items-center gap-1">
-                              <Target className="w-3 h-3 text-purple-400" />
-                              <span>Meta de Repetições</span>
-                            </label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={setCfg.reps}
-                              onChange={e => updateSeriesItem(idx, { reps: e.target.value === '' ? '' : parseInt(e.target.value) || 1 })}
-                              placeholder="Ex: 30"
-                              accentColor="purple"
-                              className="font-bold text-xs"
-                            />
-                          </div>
-                        ) : (
-                          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
-                            <label className="block text-[11px] text-amber-300 font-bold flex items-center gap-1">
-                              <Play className="w-3 h-3 fill-current text-amber-400" />
-                              <span>Tempo de Execução</span>
-                            </label>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              <Input
-                                type="number"
-                                min="0"
-                                max="60"
-                                value={setCfg.workMinutes}
-                                onChange={e => updateSeriesItem(idx, { workMinutes: parseInt(e.target.value) || 0 })}
-                                placeholder="Min"
-                              />
-                              <Input
-                                type="number"
-                                min="0"
-                                max="59"
-                                value={setCfg.workSeconds}
-                                onChange={e => updateSeriesItem(idx, { workSeconds: parseInt(e.target.value) || 0 })}
-                                placeholder="Seg"
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Descanso da Série */}
-                        <div className="p-2 rounded-xl bg-cyan-500/5 border border-cyan-500/20 space-y-1">
-                          <label className="block text-[11px] text-cyan-400 font-bold flex items-center gap-1">
-                            <Coffee className="w-3 h-3" />
-                            <span>Descanso pós-série</span>
-                          </label>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="60"
-                              value={setCfg.restMinutes}
-                              onChange={e => updateSeriesItem(idx, { restMinutes: parseInt(e.target.value) || 0 })}
-                              placeholder="Min"
-                              accentColor="cyan"
-                            />
-                            <Input
-                              type="number"
-                              min="0"
-                              max="59"
-                              value={setCfg.restSeconds}
-                              onChange={e => updateSeriesItem(idx, { restSeconds: parseInt(e.target.value) || 0 })}
-                              placeholder="Seg"
-                              accentColor="cyan"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-zinc-800/80">
-            <Button type="button" variant="zinc" size="md" fullWidth onClick={closeModal} disabled={saveWorkout.isPending}>
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              variant="amber"
-              size="md"
-              fullWidth
-              isLoading={saveWorkout.isPending}
-              loadingText="Salvando..."
-              icon={<Save className="w-4 h-4" />}
-            >
-              {isAdding && setsCount > 1 ? `Salvar ${setsCount} Séries` : 'Salvar'}
-            </Button>
-          </div>
-        </form>
-      </ModalBase>
 
       {/* Delete Single Exercise Confirmation Modal */}
       <ConfirmModal

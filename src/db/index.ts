@@ -10,14 +10,24 @@ const normalizedUrl = rawUrl.startsWith('turso://')
   ? rawUrl.replace('turso://', 'libsql://')
   : rawUrl;
 
-if (!normalizedUrl) {
-  console.warn('[Turso] VITE_TURSO_DATABASE_URL não foi informada nas variáveis de ambiente.');
+export const isTursoConfigured = Boolean(
+  normalizedUrl &&
+  !normalizedUrl.includes('seu-banco') &&
+  !normalizedUrl.includes('127.0.0.1:8080') &&
+  (normalizedUrl.startsWith('libsql://') || normalizedUrl.startsWith('https://') || normalizedUrl.startsWith('http://'))
+);
+
+if (!isTursoConfigured) {
+  console.info('[TAF PMCE DB] Modo Local (Offline/LocalStorage) ativado.');
 }
 
-export const tursoClient = createClient({
-  url: normalizedUrl || 'http://127.0.0.1:8080',
-  authToken: authToken || undefined,
-});
+export const tursoClient = isTursoConfigured
+  ? createClient({
+      url: normalizedUrl,
+      authToken: authToken || undefined,
+    })
+  : null;
 
-export const db = drizzle(tursoClient, { schema });
+export const db = tursoClient ? drizzle(tursoClient, { schema }) : null;
 export * from './schema';
+

@@ -39,7 +39,6 @@ export const WorkoutCard: React.FC<WorkoutCardProps> = ({
             {isActive && (
               <Badge variant="amber">★ Ativo</Badge>
             )}
-            <Badge variant="purple">Personalizado</Badge>
           </div>
 
           <div className="flex items-center gap-1">

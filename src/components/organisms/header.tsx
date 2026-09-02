@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Dumbbell, Plus, Settings, Cloud, RefreshCw } from 'lucide-react';
-import { useIsFetching, useIsMutating } from '@tanstack/react-query';
+import { Dumbbell, Plus, Settings } from 'lucide-react';
 import { useWorkoutStore } from '../../store/workout-store';
 import { Button } from '../atoms';
 
@@ -10,10 +9,6 @@ export const Header: React.FC = () => {
   const setShowCreateWorkoutModal = useWorkoutStore(state => state.setShowCreateWorkoutModal);
   const setShowCreateExerciseModal = useWorkoutStore(state => state.setShowCreateExerciseModal);
   const setShowManualHistoryModal = useWorkoutStore(state => state.setShowManualHistoryModal);
-
-  const isFetching = useIsFetching();
-  const isMutating = useIsMutating();
-  const isSyncing = isFetching > 0 || isMutating > 0;
 
   // Hide top header in active player fullscreen mode or edit view
   if (location.pathname === '/player' || location.pathname === '/edit') {
@@ -37,37 +32,9 @@ export const Header: React.FC = () => {
             <Dumbbell className="w-5 h-5 stroke-[2.5]" />
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-black text-base text-white tracking-tight leading-none font-['Outfit']">
-                TAF <span className="text-amber-400">PMCE</span>
-              </span>
-              
-              {/* Cloud Sync Status Indicator based on TanStack Query status */}
-              <span
-                className={`px-1.5 py-0.5 rounded-md border flex items-center gap-1 transition-all text-[10px] font-mono font-bold ${
-                  isSyncing
-                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse'
-                    : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
-                }`}
-                title={
-                  isSyncing
-                    ? 'Sincronizando com Turso...'
-                    : 'Conectado à nuvem (Turso)'
-                }
-              >
-                {isSyncing ? (
-                  <>
-                    <RefreshCw className="w-3 h-3 animate-spin text-amber-400" />
-                    <span className="hidden sm:inline">Salvando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Cloud className="w-3 h-3 text-cyan-400" />
-                    <span className="hidden sm:inline">Turso</span>
-                  </>
-                )}
-              </span>
-            </div>
+            <span className="font-black text-base text-white tracking-tight leading-none font-['Outfit']">
+              TAF <span className="text-amber-400">PMCE</span>
+            </span>
           </div>
         </Link>
 
